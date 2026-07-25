@@ -1,0 +1,30 @@
+name: Setup Valdor package
+description: Download a package from Valdor using GitHub OIDC and extract it into the workspace
+
+inputs:
+  valdor-url:
+    description: Base URL of the Valdor service
+    required: true
+  valdor-aud:
+    description: Audience for the GitHub OIDC token
+    required: true
+  forge:
+    description: Forge host; defaults to the host from github.server_url
+    required: false
+  version:
+    description: Package version passed to Valdor
+    required: false
+  tag:
+    description: Package tag passed to Valdor
+    required: false
+  branch:
+    description: Package branch passed to Valdor
+    required: false
+  commit:
+    description: Package commit passed to Valdor
+    required: false
+
+runs:
+  using: node20
+  main: dist/index.js
+
