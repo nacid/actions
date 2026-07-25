@@ -23,13 +23,20 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   });
 
   await fs.writeFile(path.join(fixtureDirectory, "from-dist.txt"), "complete");
+  await fs.writeFile(
+    path.join(fixtureDirectory, "envs.json"),
+    JSON.stringify({
+      toolPath: "{{root}}/tools",
+      "extras-cache": "{{extras}}/cache",
+    })
+  );
   const archivePath = path.join(fixtureDirectory, "fixture.tar");
   await tar.create(
     {
       cwd: fixtureDirectory,
       file: archivePath,
     },
-    ["from-dist.txt"]
+    ["from-dist.txt", "envs.json"]
   );
   const archive = await fs.readFile(archivePath);
 
@@ -54,14 +61,18 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const { port } = server.address();
   const actionPath = path.resolve(__dirname, "../dist/index.js");
+  const environmentFile = path.join(destination, "runner-env");
+  await fs.writeFile(environmentFile, "");
 
-  await execFileAsync(process.execPath, [actionPath], {
+  const { stdout } = await execFileAsync(process.execPath, [actionPath], {
     cwd: destination,
     env: {
       ...process.env,
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: "request-token",
       ACTIONS_ID_TOKEN_REQUEST_URL: `http://127.0.0.1:${port}/oidc?request=1`,
       FORGEJO_SERVER_URL: "https://codeberg.org",
+      FORGEJO_WORKSPACE: destination,
+      GITHUB_ENV: environmentFile,
       "INPUT_VALDOR-URL": `http://127.0.0.1:${port}/packages`,
       "INPUT_VALDOR-AUD": "valdor-audience",
       INPUT_FORGE: "",
@@ -76,5 +87,21 @@ test("the bundled action works with Forgejo-compatible environment variables", a
     await fs.readFile(path.join(destination, "from-dist.txt"), "utf8"),
     "complete"
   );
-});
+  await assert.rejects(fs.access(path.join(destination, "envs.json")), {
+    code: "ENOENT",
+  });
 
+  const exportedEnvironment = await fs.readFile(environmentFile, "utf8");
+  assert.match(exportedEnvironment, /TOOL_PATH<</);
+  assert.match(exportedEnvironment, /EXTRAS_CACHE<</);
+  assert.ok(exportedEnvironment.includes(`${path.resolve(destination)}/tools`));
+  assert.ok(
+    exportedEnvironment.includes(
+      `${path.join(path.resolve(destination), "extras")}/cache`
+    )
+  );
+  assert.match(
+    stdout,
+    /Created environment variables:\r?\nTOOL_PATH\r?\nEXTRAS_CACHE/
+  );
+});

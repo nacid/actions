@@ -54,6 +54,106 @@ async function responseError(response) {
   );
 }
 
+function normalizeEnvName(key) {
+  let name = key
+    .trim()
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_")
+    .toUpperCase();
+
+  if (!name) {
+    throw new Error(`envs.json key ${JSON.stringify(key)} has no valid characters`);
+  }
+
+  if (/^[0-9]/.test(name)) {
+    name = `_${name}`;
+  }
+
+  return name;
+}
+
+function expandEnvValue(value, workspace) {
+  const root = path.resolve(workspace);
+  const extras = path.join(root, "extras");
+
+  return value
+    .replaceAll("{{root}}", root)
+    .replaceAll("{{extras}}", extras);
+}
+
+async function exportEnvs({
+  directory,
+  workspace = directory,
+  setSecret = (value) => core.setSecret(value),
+  exportVariable = (name, value) => core.exportVariable(name, value),
+  info = (message) => core.info(message),
+}) {
+  const envsPath = path.join(directory, "envs.json");
+  let source;
+
+  try {
+    source = await fs.readFile(envsPath, "utf8");
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+
+  await fs.unlink(envsPath);
+
+  let envs;
+  try {
+    envs = JSON.parse(source);
+  } catch {
+    throw new Error("envs.json is not valid JSON");
+  }
+
+  if (envs === null || Array.isArray(envs) || typeof envs !== "object") {
+    throw new Error("envs.json must contain a flat JSON object");
+  }
+
+  const normalizedNames = new Map();
+  const resolvedEnvs = [];
+
+  for (const [key, value] of Object.entries(envs)) {
+    if (typeof value !== "string") {
+      throw new Error(`envs.json value for ${JSON.stringify(key)} must be a string`);
+    }
+
+    const name = normalizeEnvName(key);
+    const previousKey = normalizedNames.get(name);
+    if (previousKey !== undefined) {
+      throw new Error(
+        `envs.json keys ${JSON.stringify(previousKey)} and ${JSON.stringify(key)} both normalize to ${name}`
+      );
+    }
+
+    normalizedNames.set(name, key);
+    resolvedEnvs.push([name, expandEnvValue(value, workspace)]);
+  }
+
+  for (const [, value] of resolvedEnvs) {
+    setSecret(value);
+  }
+
+  for (const [name, value] of resolvedEnvs) {
+    exportVariable(name, value);
+  }
+
+  if (resolvedEnvs.length > 0) {
+    info("Created environment variables:");
+    for (const [name] of resolvedEnvs) {
+      info(name);
+    }
+  }
+
+  return resolvedEnvs.map(([name]) => name);
+}
+
 async function run({
   getInput = (name, options) => core.getInput(name, options),
   getIDToken = (audience) => core.getIDToken(audience),
@@ -61,6 +161,10 @@ async function run({
   serverUrl =
     process.env.FORGEJO_SERVER_URL || process.env.GITHUB_SERVER_URL,
   destination = process.cwd(),
+  workspace =
+    process.env.FORGEJO_WORKSPACE ||
+    process.env.GITHUB_WORKSPACE ||
+    destination,
 } = {}) {
   const valdorUrl = getInput("valdor-url", { required: true });
   const audience = getInput("valdor-aud", { required: true });
@@ -98,11 +202,16 @@ async function run({
       createWriteStream(archivePath)
     );
 
-    core.info(`Extracting package into ${destination}`);
+    core.info("Extracting package into the workspace");
     await tar.extract({
       file: archivePath,
       cwd: destination,
       strict: true,
+    });
+
+    await exportEnvs({
+      directory: destination,
+      workspace,
     });
   } finally {
     await fs.rm(tempDirectory, { recursive: true, force: true });
@@ -118,6 +227,9 @@ if (require.main === module) {
 module.exports = {
   SELECTOR_INPUTS,
   buildPackageUrl,
+  expandEnvValue,
+  exportEnvs,
+  normalizeEnvName,
   parseForge,
   responseError,
   run,

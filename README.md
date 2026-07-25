@@ -66,4 +66,20 @@ Valdor must return an uncompressed or supported compressed tar archive. The
 archive is extracted into `github.workspace` (the action process working
 directory).
 
+If the extracted archive contains `envs.json` at its root, the action reads and
+deletes it. The file must contain a flat JSON object with string values:
+
+```json
+{
+  "toolPath": "{{root}}/tools",
+  "extras-cache": "{{extras}}/cache"
+}
+```
+
+Keys are normalized to upper snake case (`TOOL_PATH`, `EXTRAS_CACHE`) and
+exported for subsequent workflow steps. `{{root}}` is replaced with the
+workspace path and `{{extras}}` with its `extras` subdirectory. Every resolved
+value is registered as a secret before it is exported or any variable names are
+logged.
+
 The Forgejo runner image must provide Node.js 20 for JavaScript actions.
