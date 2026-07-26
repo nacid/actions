@@ -3,8 +3,9 @@
 ## `docker`
 
 Builds and publishes one `linux/amd64` and `linux/arm64` image. The normalized
-branch, optional version, and optional additional tag names are combined,
-deduplicated, and assigned to the same multi-platform manifest.
+branch, `sha-<12-character-commit>`, optional version, and optional additional
+tag names are combined, deduplicated, and assigned to the same multi-platform
+manifest.
 
 ```yaml
 - id: meta
@@ -13,7 +14,6 @@ deduplicated, and assigned to the same multi-platform manifest.
     images: ${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}
     tags: |
       type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-      type=sha,prefix=sha-
 
 - id: docker
   uses: nacid/actions/docker@v1

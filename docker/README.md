@@ -3,18 +3,18 @@
 Builds one Docker image for `linux/amd64` and `linux/arm64`, pushes it to a
 registry, and assigns every collected tag to the same multi-platform manifest.
 
-The action always adds the normalized branch tag. It also adds the optional
-`version` tag and every tag supplied through `tags`. Duplicate tags are removed
-before the build.
+The action always adds the normalized branch tag and `sha-` followed by the
+12-character commit. It also adds the optional `version` tag and every tag
+supplied through `tags`. Duplicate tags are removed before the build.
 
-For branch `Feature/Voice API`, version `1.4.7`, and additional tags `latest`
-and `sha-0123456`, the action publishes:
+For branch `Feature/Voice API`, version `1.4.7`, commit `0123456789abcdef`, and
+the additional tag `latest`, the action publishes:
 
 ```text
 registry.example.test/team/token-service:feature-voice-api
 registry.example.test/team/token-service:1.4.7
+registry.example.test/team/token-service:sha-0123456789ab
 registry.example.test/team/token-service:latest
-registry.example.test/team/token-service:sha-0123456
 ```
 
 All references point to the digest returned through the `digest` output.
@@ -81,7 +81,6 @@ repository. This matches the `tag-names` output of
     images: ${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}
     tags: |
       type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-      type=sha,prefix=sha-
 
 - name: Build and publish Docker image
   id: docker
@@ -98,9 +97,9 @@ repository. This matches the `tag-names` output of
     cache-to: type=gha,mode=max
 ```
 
-On `main`, this example publishes `main`, `latest`, and `sha-<short-sha>`.
-The labels, base-image refresh, and GitHub Actions cache configuration are
-passed directly to Buildx.
+On `main`, this example publishes `main`, `latest`, and
+`sha-<12-character-commit>`. The labels, base-image refresh, and GitHub Actions
+cache configuration are passed directly to Buildx.
 
 ## Inputs
 
@@ -133,8 +132,8 @@ passed directly to Buildx.
 - `qemu-image`: binfmt image used by automatic QEMU setup. Defaults to the
   versioned `docker.io/tonistiigi/binfmt:qemu-v10.2.3-68` image.
 
-At least the branch tag is always published, so both `version` and `tags` may
-be omitted.
+The branch and short-commit tags are always published, so both `version` and
+`tags` may be omitted.
 
 ## Build arguments
 
@@ -158,6 +157,8 @@ out `HEAD` used as a fallback.
 - `branch-tag`: complete image reference with the normalized branch tag.
 - `version-tag`: complete image reference with the version tag when `version`
   is set.
+- `commit-tag`: complete image reference tagged with `sha-` followed by the
+  12-character commit.
 - `commit`: the 12-character commit passed to the Dockerfile.
 - `digest`: SHA-256 digest of the published multi-platform manifest.
 

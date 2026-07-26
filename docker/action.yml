@@ -63,6 +63,8 @@ outputs:
     description: Complete image reference tagged with the normalized branch
   version-tag:
     description: Complete image reference tagged with the supplied version, when version is set
+  commit-tag:
+    description: Complete image reference tagged with sha- followed by the short commit
   commit:
     description: Twelve-character Git commit used for APP_COMMIT
   digest:

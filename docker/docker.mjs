@@ -198,10 +198,12 @@ export function imageMetadata({
   const branchTag = normalizeBranchTag(branch);
   const normalizedVersion = (version ?? "").trim() ? validateVersionTag(version) : "";
   const normalizedCommit = normalizeCommit(commit);
+  const commitTag = `sha-${normalizedCommit}`;
   const tagNames = [
     ...new Set([
       branchTag,
       ...(normalizedVersion ? [normalizedVersion] : []),
+      commitTag,
       ...normalizeAdditionalTags(tags),
     ]),
   ];
@@ -213,10 +215,12 @@ export function imageMetadata({
     branchTag,
     version: normalizedVersion,
     commit: normalizedCommit,
+    commitTag,
     tagNames,
     references,
     branchReference: `${image}:${branchTag}`,
     versionReference: normalizedVersion ? `${image}:${normalizedVersion}` : "",
+    commitReference: `${image}:${commitTag}`,
   };
 }
 
@@ -519,6 +523,7 @@ export async function publishDockerImage(options = {}) {
     if (metadata.versionReference) {
       await writeOutput(outputPath, "version-tag", metadata.versionReference);
     }
+    await writeOutput(outputPath, "commit-tag", metadata.commitReference);
     await writeOutput(outputPath, "commit", metadata.commit);
     await writeOutput(outputPath, "digest", digest);
 

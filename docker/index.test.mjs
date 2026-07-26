@@ -202,14 +202,17 @@ test("imageMetadata combines branch, version, and additional tags without duplic
       branchTag: "feature-voice-api",
       version: "2.4.9",
       commit: "0123456789ab",
-      tagNames: ["feature-voice-api", "2.4.9", "latest"],
+      commitTag: "sha-0123456789ab",
+      tagNames: ["feature-voice-api", "2.4.9", "sha-0123456789ab", "latest"],
       references: [
         "registry.example.test/team/token-service:feature-voice-api",
         "registry.example.test/team/token-service:2.4.9",
+        "registry.example.test/team/token-service:sha-0123456789ab",
         "registry.example.test/team/token-service:latest",
       ],
       branchReference: "registry.example.test/team/token-service:feature-voice-api",
       versionReference: "registry.example.test/team/token-service:2.4.9",
+      commitReference: "registry.example.test/team/token-service:sha-0123456789ab",
     },
   );
 });
@@ -225,7 +228,10 @@ test("imageMetadata allows version to be omitted", () => {
 
   assert.equal(metadata.version, "");
   assert.equal(metadata.versionReference, "");
-  assert.deepEqual(metadata.tagNames, ["main", "latest", "sha-0123456"]);
+  assert.deepEqual(
+    metadata.tagNames,
+    ["main", "sha-0123456789ab", "latest", "sha-0123456"],
+  );
   assert.ok(
     !buildArguments({
       builder: "test-builder",
@@ -255,7 +261,7 @@ test("buildArguments includes all tags, labels, pulling, and external caches", (
       metadataFile: "metadata.json",
       metadata,
       labels: [
-        "org.opencontainers.image.revision=0123456789ab",
+        `org.opencontainers.image.revision=${COMMIT}`,
         "org.opencontainers.image.version=latest",
       ],
       pull: true,
@@ -278,13 +284,15 @@ test("buildArguments includes all tags, labels, pulling, and external caches", (
       "--build-arg",
       "APP_VERSION=3.1.4",
       "--label",
-      "org.opencontainers.image.revision=0123456789ab",
+      `org.opencontainers.image.revision=${COMMIT}`,
       "--label",
       "org.opencontainers.image.version=latest",
       "--tag",
       "registry.example.test/team/service:main",
       "--tag",
       "registry.example.test/team/service:3.1.4",
+      "--tag",
+      "registry.example.test/team/service:sha-0123456789ab",
       "--tag",
       "registry.example.test/team/service:latest",
       "--tag",
@@ -342,7 +350,7 @@ test("publishDockerImage publishes every tag with labels and cache settings", as
       version: "1.8.3",
       tags: "latest\nsha-0123456\n1.8.3",
       labels: [
-        "org.opencontainers.image.revision=0123456789ab",
+        `org.opencontainers.image.revision=${COMMIT}`,
         "org.opencontainers.image.version=latest",
       ],
       pull: true,
@@ -369,6 +377,7 @@ test("publishDockerImage publishes every tag with labels and cache settings", as
     assert.deepEqual(result.references, [
       "registry.example.test/team/service:feature-new-api",
       "registry.example.test/team/service:1.8.3",
+      "registry.example.test/team/service:sha-0123456789ab",
       "registry.example.test/team/service:latest",
       "registry.example.test/team/service:sha-0123456",
     ]);
@@ -390,6 +399,7 @@ test("publishDockerImage publishes every tag with labels and cache settings", as
     assert.ok(build.args.includes("linux/amd64,linux/arm64"));
     assert.ok(build.args.includes("APP_BRANCH=Feature/New API"));
     assert.ok(build.args.includes("org.opencontainers.image.version=latest"));
+    assert.ok(build.args.includes(`org.opencontainers.image.revision=${COMMIT}`));
     assert.ok(build.args.includes("type=gha,mode=max"));
     assert.ok(build.args.includes("--pull"));
 
@@ -405,6 +415,7 @@ test("publishDockerImage publishes every tag with labels and cache settings", as
       [
         "registry.example.test/team/service:feature-new-api",
         "registry.example.test/team/service:1.8.3",
+        "registry.example.test/team/service:sha-0123456789ab",
         "registry.example.test/team/service:latest",
         "registry.example.test/team/service:sha-0123456",
       ].join("\n"),
@@ -416,6 +427,10 @@ test("publishDockerImage publishes every tag with labels and cache settings", as
     assert.equal(
       outputs.get("version-tag"),
       "registry.example.test/team/service:1.8.3",
+    );
+    assert.equal(
+      outputs.get("commit-tag"),
+      "registry.example.test/team/service:sha-0123456789ab",
     );
     assert.equal(outputs.get("commit"), "0123456789ab");
     assert.equal(outputs.get("digest"), DIGEST);
