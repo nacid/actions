@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   DEFAULT_QEMU_IMAGE,
@@ -46,6 +48,27 @@ function successfulCommand(calls) {
   };
 }
 
+function runNode(args, options) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(process.execPath, args, {
+      ...options,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    const output = [];
+
+    child.stdout.on("data", (chunk) => output.push(chunk));
+    child.stderr.on("data", (chunk) => output.push(chunk));
+    child.on("error", rejectPromise);
+    child.on("close", (status) => {
+      resolvePromise({
+        status: status ?? 1,
+        output: Buffer.concat(output).toString("utf8"),
+      });
+    });
+  });
+}
+
 function parseWorkflowOutputs(source) {
   const outputs = new Map();
   const lines = source.split(/\r?\n/u);
@@ -73,6 +96,34 @@ function parseWorkflowOutputs(source) {
 
   return outputs;
 }
+
+test("entrypoint runs when the action directory is reached through a symlink", async () => {
+  const root = await mkdtemp(join(tmpdir(), "docker-entrypoint-"));
+  const actionDirectory = fileURLToPath(new URL(".", import.meta.url));
+  const linkedDirectory = join(root, "action");
+
+  try {
+    await symlink(
+      actionDirectory,
+      linkedDirectory,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const environment = {
+      ...process.env,
+      "INPUT_REGISTRY-USER": "",
+      INPUT_REGISTRY_USER: "",
+    };
+    const result = await runNode([join(linkedDirectory, "index.mjs")], {
+      cwd: root,
+      env: environment,
+    });
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.output, /Expected a non-empty 'registry-user' input/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("normalizeBranchTag follows Docker tag rules and limits the result to 128 characters", () => {
   assert.equal(normalizeBranchTag("Feature/Voice API"), "feature-voice-api");
