@@ -72,15 +72,21 @@ test("expandEnvValue replaces root and extras placeholders", () => {
   );
 });
 
-test("exportEnvs removes envs.json, masks values, exports them, and logs names", async (t) => {
+test("exportEnvs removes envs.json, masks only secrets, exports values, and logs names", async (t) => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "valdor-envs-"));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
   const envsPath = path.join(directory, "envs.json");
   await fs.writeFile(
     envsPath,
     JSON.stringify({
-      toolPath: "{{root}}/tools",
-      "extras-cache": "{{extras}}/cache",
+      toolPath: {
+        secret: true,
+        value: "{{root}}/tools",
+      },
+      "extras-cache": {
+        secret: false,
+        value: "{{extras}}/cache",
+      },
     })
   );
 
@@ -99,7 +105,6 @@ test("exportEnvs removes envs.json, masks values, exports them, and logs names",
   assert.deepEqual(names, ["TOOL_PATH", "EXTRAS_CACHE"]);
   assert.deepEqual(events, [
     ["secret", toolPath],
-    ["secret", extrasCache],
     ["export", "TOOL_PATH", toolPath],
     ["export", "EXTRAS_CACHE", extrasCache],
     ["info", "Created environment variables:"],
@@ -118,8 +123,8 @@ test("exportEnvs rejects normalized name collisions after deleting the file", as
   await fs.writeFile(
     envsPath,
     JSON.stringify({
-      "some-key": "one",
-      someKey: "two",
+      "some-key": { secret: false, value: "one" },
+      someKey: { secret: false, value: "two" },
     })
   );
 
@@ -128,6 +133,24 @@ test("exportEnvs rejects normalized name collisions after deleting the file", as
     /both normalize to SOME_KEY/
   );
   await assert.rejects(fs.access(envsPath), { code: "ENOENT" });
+});
+
+test("exportEnvs rejects entries without a boolean secret flag", async (t) => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), "valdor-env-invalid-")
+  );
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  await fs.writeFile(
+    path.join(directory, "envs.json"),
+    JSON.stringify({
+      token: { value: "not-marked" },
+    })
+  );
+
+  await assert.rejects(
+    exportEnvs({ directory }),
+    /secret for "token" must be a boolean/
+  );
 });
 
 test("run requests OIDC, downloads the archive, and extracts it", async (t) => {

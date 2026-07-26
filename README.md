@@ -101,19 +101,25 @@ archive is extracted into `github.workspace` (the action process working
 directory).
 
 If the extracted archive contains `envs.json` at its root, the action reads and
-deletes it. The file must contain a flat JSON object with string values:
+deletes it. The file must contain a flat JSON object whose entries have a
+boolean `secret` flag and a string `value`:
 
 ```json
 {
-  "toolPath": "{{root}}/tools",
-  "extras-cache": "{{extras}}/cache"
+  "toolPath": {
+    "secret": true,
+    "value": "{{root}}/tools"
+  },
+  "extras-cache": {
+    "secret": false,
+    "value": "{{extras}}/cache"
+  }
 }
 ```
 
 Keys are normalized to upper snake case (`TOOL_PATH`, `EXTRAS_CACHE`) and
 exported for subsequent workflow steps. `{{root}}` is replaced with the
-workspace path and `{{extras}}` with its `extras` subdirectory. Every resolved
-value is registered as a secret before it is exported or any variable names are
-logged.
+workspace path and `{{extras}}` with its `extras` subdirectory. A resolved value
+is registered as a secret only when its `secret` flag is `true`.
 
 The Forgejo runner image must provide Node.js 20 for JavaScript actions.

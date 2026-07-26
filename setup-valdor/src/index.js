@@ -119,9 +119,21 @@ async function exportEnvs({
   const normalizedNames = new Map();
   const resolvedEnvs = [];
 
-  for (const [key, value] of Object.entries(envs)) {
-    if (typeof value !== "string") {
-      throw new Error(`envs.json value for ${JSON.stringify(key)} must be a string`);
+  for (const [key, entry] of Object.entries(envs)) {
+    if (entry === null || Array.isArray(entry) || typeof entry !== "object") {
+      throw new Error(
+        `envs.json entry for ${JSON.stringify(key)} must be an object`
+      );
+    }
+    if (typeof entry.secret !== "boolean") {
+      throw new Error(
+        `envs.json secret for ${JSON.stringify(key)} must be a boolean`
+      );
+    }
+    if (typeof entry.value !== "string") {
+      throw new Error(
+        `envs.json value for ${JSON.stringify(key)} must be a string`
+      );
     }
 
     const name = normalizeEnvName(key);
@@ -133,11 +145,17 @@ async function exportEnvs({
     }
 
     normalizedNames.set(name, key);
-    resolvedEnvs.push([name, expandEnvValue(value, workspace)]);
+    resolvedEnvs.push([
+      name,
+      expandEnvValue(entry.value, workspace),
+      entry.secret,
+    ]);
   }
 
-  for (const [, value] of resolvedEnvs) {
-    setSecret(value);
+  for (const [, value, secret] of resolvedEnvs) {
+    if (secret) {
+      setSecret(value);
+    }
   }
 
   for (const [name, value] of resolvedEnvs) {

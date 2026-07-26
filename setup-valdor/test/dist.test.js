@@ -26,8 +26,14 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   await fs.writeFile(
     path.join(fixtureDirectory, "envs.json"),
     JSON.stringify({
-      toolPath: "{{root}}/tools",
-      "extras-cache": "{{extras}}/cache",
+      toolPath: {
+        secret: true,
+        value: "{{root}}/tools",
+      },
+      "extras-cache": {
+        secret: false,
+        value: "{{extras}}/cache",
+      },
     })
   );
   const archivePath = path.join(fixtureDirectory, "fixture.tar");
@@ -103,5 +109,11 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   assert.match(
     stdout,
     /Created environment variables:\r?\nTOOL_PATH\r?\nEXTRAS_CACHE/
+  );
+  assert.ok(stdout.includes(`::add-mask::${path.resolve(destination)}/tools`));
+  assert.ok(
+    !stdout.includes(
+      `::add-mask::${path.join(path.resolve(destination), "extras")}/cache`
+    )
   );
 });
