@@ -1,5 +1,39 @@
 # nacid/actions
 
+## `docker`
+
+Builds and publishes one `linux/amd64` and `linux/arm64` image. The normalized
+branch, optional version, and optional additional tag names are combined,
+deduplicated, and assigned to the same multi-platform manifest.
+
+```yaml
+- id: meta
+  uses: docker/metadata-action@v6
+  with:
+    images: ${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}
+    tags: |
+      type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+      type=sha,prefix=sha-
+
+- id: docker
+  uses: nacid/actions/docker@v1
+  with:
+    registry: ${{ vars.REGISTRY }}
+    registry-image: ${{ vars.REGISTRY_IMAGE }}
+    registry-user: ${{ secrets.REGISTRY_USER }}
+    registry-password: ${{ secrets.REGISTRY_PASS }}
+    tags: ${{ steps.meta.outputs.tag-names }}
+    labels: ${{ steps.meta.outputs.labels }}
+    pull: true
+    cache-from: type=gha
+    cache-to: type=gha,mode=max
+```
+
+The runner must provide Docker, Buildx, daemon access, and permission to start
+a privileged container if QEMU emulation is missing. See
+[the Docker action documentation](docker/README.md) for the
+complete input and cleanup contract.
+
 ## `setup-valdor`
 
 Downloads a tar archive from Valdor using a GitHub OIDC token and extracts it

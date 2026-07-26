@@ -5,7 +5,7 @@
   "description": "GitHub Actions maintained by nacid",
   "scripts": {
     "build": "ncc build setup-valdor/src/index.js -o setup-valdor/dist --minify",
-    "test": "node --test setup-valdor/test/*.test.js",
+    "test": "node --test setup-valdor/test/*.test.js docker/index.test.mjs",
     "check": "npm run test && npm run build"
   },
   "dependencies": {

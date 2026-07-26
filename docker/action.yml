@@ -1,0 +1,73 @@
+name: Build and publish Docker image
+description: Build and publish a multi-platform Docker image with branch and version tags
+
+inputs:
+  working-directory:
+    description: Working directory, relative to GITHUB_WORKSPACE or absolute
+    required: false
+    default: .
+  registry:
+    description: Docker registry host, optionally including a port
+    required: true
+  registry-image:
+    description: Repository path inside the registry, without a tag
+    required: true
+  registry-user:
+    description: User name used to authenticate to the registry
+    required: true
+  registry-password:
+    description: Password or access token used to authenticate to the registry
+    required: true
+  version:
+    description: Optional version added as an image tag and passed as APP_VERSION
+    required: false
+  tags:
+    description: Additional Docker tag names, one per line, without the image repository
+    required: false
+  labels:
+    description: Additional image labels, one key=value pair per line
+    required: false
+  pull:
+    description: Always attempt to pull newer versions of base images
+    required: false
+    default: "false"
+  cache-from:
+    description: External Buildx cache sources, one cache specification per line
+    required: false
+  cache-to:
+    description: External Buildx cache destinations, one cache specification per line
+    required: false
+  context:
+    description: Docker build context, relative to working-directory or absolute
+    required: false
+    default: .
+  dockerfile:
+    description: Path to the Dockerfile, relative to working-directory or absolute
+    required: false
+    default: Dockerfile
+  qemu-setup:
+    description: Configure missing QEMU emulators automatically (auto or never)
+    required: false
+    default: auto
+  qemu-image:
+    description: Binfmt image used when qemu-setup is auto and emulation is missing
+    required: false
+    default: docker.io/tonistiigi/binfmt:qemu-v10.2.3-68
+
+outputs:
+  image:
+    description: Image repository without a tag
+  tags:
+    description: Complete newline-separated image references published by the action
+  branch-tag:
+    description: Complete image reference tagged with the normalized branch
+  version-tag:
+    description: Complete image reference tagged with the supplied version, when version is set
+  commit:
+    description: Twelve-character Git commit used for APP_COMMIT
+  digest:
+    description: Digest of the published multi-platform manifest
+
+runs:
+  using: node24
+  main: index.mjs
