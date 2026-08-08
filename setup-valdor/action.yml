@@ -24,7 +24,14 @@ inputs:
     description: Package commit passed to Valdor
     required: false
 
+outputs:
+  upload_url:
+    description: Upload endpoint from upload.json, when provided by Valdor
+  upload_token:
+    description: Upload token from upload.json, when provided by Valdor
+  upload_expire:
+    description: Upload expiration timestamp from upload.json, when provided by Valdor
+
 runs:
   using: node20
   main: dist/index.js
-

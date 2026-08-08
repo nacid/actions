@@ -9,6 +9,7 @@ const {
   buildPackageUrl,
   expandEnvValue,
   exportEnvs,
+  exportUpload,
   normalizeEnvName,
   parseForge,
   responseError,
@@ -151,6 +152,66 @@ test("exportEnvs rejects entries without a boolean secret flag", async (t) => {
     exportEnvs({ directory }),
     /secret for "token" must be a boolean/
   );
+});
+
+test("exportUpload removes upload.json and sets outputs", async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "valdor-upload-"));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const uploadPath = path.join(directory, "upload.json");
+  const upload = {
+    endpoint: "https://trazyn.example/api/v1/uploads/abc",
+    token: "upload-token",
+    expires_at: "2026-08-09T02:57:49Z",
+  };
+  await fs.writeFile(uploadPath, JSON.stringify(upload));
+
+  const events = [];
+  const result = await exportUpload({
+    directory,
+    setOutput: (name, value) => events.push(["output", name, value]),
+  });
+
+  assert.deepEqual(result, upload);
+  assert.deepEqual(events, [
+    ["output", "upload_url", upload.endpoint],
+    ["output", "upload_token", upload.token],
+    ["output", "upload_expire", upload.expires_at],
+  ]);
+  await assert.rejects(fs.access(uploadPath), { code: "ENOENT" });
+});
+
+test("exportUpload does nothing when upload.json is absent", async (t) => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), "valdor-upload-absent-")
+  );
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const events = [];
+
+  const result = await exportUpload({
+    directory,
+    setOutput: (name, value) => events.push(["output", name, value]),
+  });
+
+  assert.equal(result, null);
+  assert.deepEqual(events, []);
+});
+
+test("exportUpload rejects missing fields after deleting the file", async (t) => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), "valdor-upload-invalid-")
+  );
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const uploadPath = path.join(directory, "upload.json");
+  await fs.writeFile(
+    uploadPath,
+    JSON.stringify({ endpoint: "https://trazyn.example/upload", token: "token" })
+  );
+
+  await assert.rejects(
+    exportUpload({ directory }),
+    /upload.json expires_at must be a string/
+  );
+  await assert.rejects(fs.access(uploadPath), { code: "ENOENT" });
 });
 
 test("run requests OIDC, downloads the archive, and extracts it", async (t) => {

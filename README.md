@@ -122,4 +122,19 @@ exported for subsequent workflow steps. `{{root}}` is replaced with the
 workspace path and `{{extras}}` with its `extras` subdirectory. A resolved value
 is registered as a secret only when its `secret` flag is `true`.
 
+If the archive contains `upload.json` at its root, the action reads and deletes
+it as well. The file must contain string `endpoint`, `token`, and `expires_at`
+fields:
+
+```json
+{
+  "endpoint": "https://trazyn.example/api/v1/uploads/abc",
+  "token": "upload-token",
+  "expires_at": "2026-08-09T02:57:49Z"
+}
+```
+
+These values are exposed as `upload_url`, `upload_token`, and `upload_expire`
+action outputs, respectively.
+
 The Forgejo runner image must provide Node.js 20 for JavaScript actions.

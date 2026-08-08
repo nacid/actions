@@ -36,13 +36,22 @@ test("the bundled action works with Forgejo-compatible environment variables", a
       },
     })
   );
+  const upload = {
+    endpoint: "https://trazyn.example/api/v1/uploads/abc",
+    token: "upload-token",
+    expires_at: "2026-08-09T02:57:49Z",
+  };
+  await fs.writeFile(
+    path.join(fixtureDirectory, "upload.json"),
+    JSON.stringify(upload)
+  );
   const archivePath = path.join(fixtureDirectory, "fixture.tar");
   await tar.create(
     {
       cwd: fixtureDirectory,
       file: archivePath,
     },
-    ["from-dist.txt", "envs.json"]
+    ["from-dist.txt", "envs.json", "upload.json"]
   );
   const archive = await fs.readFile(archivePath);
 
@@ -68,7 +77,9 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   const { port } = server.address();
   const actionPath = path.resolve(__dirname, "../dist/index.js");
   const environmentFile = path.join(destination, "runner-env");
+  const outputFile = path.join(destination, "runner-output");
   await fs.writeFile(environmentFile, "");
+  await fs.writeFile(outputFile, "");
 
   const { stdout } = await execFileAsync(process.execPath, [actionPath], {
     cwd: destination,
@@ -79,6 +90,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
       FORGEJO_SERVER_URL: "https://codeberg.org",
       FORGEJO_WORKSPACE: destination,
       GITHUB_ENV: environmentFile,
+      GITHUB_OUTPUT: outputFile,
       "INPUT_VALDOR-URL": `http://127.0.0.1:${port}/packages`,
       "INPUT_VALDOR-AUD": "valdor-audience",
       INPUT_FORGE: "",
@@ -96,6 +108,9 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   await assert.rejects(fs.access(path.join(destination, "envs.json")), {
     code: "ENOENT",
   });
+  await assert.rejects(fs.access(path.join(destination, "upload.json")), {
+    code: "ENOENT",
+  });
 
   const exportedEnvironment = await fs.readFile(environmentFile, "utf8");
   assert.match(exportedEnvironment, /TOOL_PATH<</);
@@ -106,6 +121,14 @@ test("the bundled action works with Forgejo-compatible environment variables", a
       `${path.join(path.resolve(destination), "extras")}/cache`
     )
   );
+
+  const outputs = await fs.readFile(outputFile, "utf8");
+  assert.match(outputs, /upload_url<</);
+  assert.match(outputs, /upload_token<</);
+  assert.match(outputs, /upload_expire<</);
+  assert.ok(outputs.includes(upload.endpoint));
+  assert.ok(outputs.includes(upload.token));
+  assert.ok(outputs.includes(upload.expires_at));
   assert.match(
     stdout,
     /Created environment variables:\r?\nTOOL_PATH\r?\nEXTRAS_CACHE/

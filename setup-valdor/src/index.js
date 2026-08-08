@@ -172,6 +172,48 @@ async function exportEnvs({
   return resolvedEnvs.map(([name]) => name);
 }
 
+async function exportUpload({
+  directory,
+  setOutput = (name, value) => core.setOutput(name, value),
+}) {
+  const uploadPath = path.join(directory, "upload.json");
+  let source;
+
+  try {
+    source = await fs.readFile(uploadPath, "utf8");
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+
+  await fs.unlink(uploadPath);
+
+  let upload;
+  try {
+    upload = JSON.parse(source);
+  } catch {
+    throw new Error("upload.json is not valid JSON");
+  }
+
+  if (upload === null || Array.isArray(upload) || typeof upload !== "object") {
+    throw new Error("upload.json must contain a JSON object");
+  }
+
+  for (const field of ["endpoint", "token", "expires_at"]) {
+    if (typeof upload[field] !== "string") {
+      throw new Error(`upload.json ${field} must be a string`);
+    }
+  }
+
+  setOutput("upload_url", upload.endpoint);
+  setOutput("upload_token", upload.token);
+  setOutput("upload_expire", upload.expires_at);
+
+  return upload;
+}
+
 async function run({
   getInput = (name, options) => core.getInput(name, options),
   getIDToken = (audience) => core.getIDToken(audience),
@@ -231,6 +273,7 @@ async function run({
       directory: destination,
       workspace,
     });
+    await exportUpload({ directory: destination });
   } finally {
     await fs.rm(tempDirectory, { recursive: true, force: true });
   }
@@ -247,6 +290,7 @@ module.exports = {
   buildPackageUrl,
   expandEnvValue,
   exportEnvs,
+  exportUpload,
   normalizeEnvName,
   parseForge,
   responseError,
