@@ -17,6 +17,7 @@ import {
   normalizeBooleanInput,
   normalizeBranchTag,
   normalizeImageRepository,
+  normalizePlatforms,
   normalizeQemuSetup,
   publishDockerImage,
   qemuArchitectures,
@@ -186,6 +187,23 @@ test("additional tags and boolean inputs are normalized and validated", () => {
   assert.throws(() => normalizeBooleanInput("pull", "yes"), /must be 'true' or 'false'/u);
 });
 
+test("platforms accept comma-separated and multiline values", () => {
+  assert.deepEqual(normalizePlatforms("linux/amd64"), ["linux/amd64"]);
+  assert.deepEqual(
+    normalizePlatforms("linux/amd64, linux/arm64\nlinux/amd64"),
+    ["linux/amd64", "linux/arm64"],
+  );
+  assert.deepEqual(normalizePlatforms(""), PLATFORMS);
+  assert.throws(
+    () => normalizePlatforms("windows/amd64"),
+    /linux\/architecture/u,
+  );
+  assert.throws(
+    () => normalizePlatforms("linux/amd64 --push"),
+    /linux\/architecture/u,
+  );
+});
+
 test("imageMetadata combines branch, version, and additional tags without duplicates", () => {
   assert.deepEqual(
     imageMetadata({
@@ -313,6 +331,7 @@ test("buildArguments includes all tags, labels, pulling, and external caches", (
 
 test("platform inspection reports missing binfmt support", () => {
   assert.doesNotThrow(() => assertSupportedPlatforms("Platforms: linux/amd64, linux/arm64/v8"));
+  assert.doesNotThrow(() => assertSupportedPlatforms("Platforms: linux/amd64", ["linux/amd64"]));
   assert.throws(
     () => assertSupportedPlatforms("Platforms: linux/amd64"),
     /linux\/arm64.*binfmt\/QEMU/u,
@@ -324,6 +343,7 @@ test("QEMU configuration accepts auto or never and converts platforms to archite
   assert.equal(normalizeQemuSetup("never"), "never");
   assert.throws(() => normalizeQemuSetup("always"), /must be 'auto' or 'never'/u);
   assert.deepEqual(qemuArchitectures(["linux/arm64", "linux/amd64/v3"]), ["arm64", "amd64"]);
+  assert.deepEqual(qemuArchitectures(["linux/arm/v6", "linux/arm/v7"]), ["arm"]);
 });
 
 test("builder names are scoped to the CI run and action process", () => {
@@ -356,6 +376,7 @@ test("publishDockerImage publishes every tag with labels and cache settings", as
       pull: true,
       cacheFrom: ["type=gha"],
       cacheTo: ["type=gha,mode=max"],
+      platforms: "linux/amd64",
       branch: "Feature/New API",
       commit: COMMIT,
       context: ".",
@@ -396,7 +417,8 @@ test("publishDockerImage publishes every tag with labels and cache settings", as
     assert.ok(!JSON.stringify(calls.map(({ args }) => args)).includes("top-secret"));
 
     const build = calls.find(({ args }) => args[0] === "buildx" && args[1] === "build");
-    assert.ok(build.args.includes("linux/amd64,linux/arm64"));
+    assert.ok(build.args.includes("linux/amd64"));
+    assert.ok(!build.args.includes("linux/amd64,linux/arm64"));
     assert.ok(build.args.includes("APP_BRANCH=Feature/New API"));
     assert.ok(build.args.includes("org.opencontainers.image.version=latest"));
     assert.ok(build.args.includes(`org.opencontainers.image.revision=${COMMIT}`));
@@ -699,6 +721,21 @@ test("invalid configuration fails before any Docker command", async () => {
       command,
     }),
     /must be 'true' or 'false'/u,
+  );
+
+  await assert.rejects(
+    publishDockerImage({
+      registry: "registry.example.test",
+      registryImage: "team/service",
+      registryUser: "ci-user",
+      registryPassword: "top-secret",
+      platforms: "windows/amd64",
+      branch: "main",
+      commit: COMMIT,
+      environment: {},
+      command,
+    }),
+    /linux\/architecture/u,
   );
 
   assert.equal(commandCalls, 0);

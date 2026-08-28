@@ -9,6 +9,7 @@ export const DEFAULT_QEMU_IMAGE = "docker.io/tonistiigi/binfmt:qemu-v10.2.3-68";
 
 const DOCKER_TAG_RE = /^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$/u;
 const COMMIT_RE = /^[0-9a-f]{7,64}$/iu;
+const PLATFORM_RE = /^linux\/[a-z0-9][a-z0-9_.-]*(?:\/[a-z0-9][a-z0-9_.-]*)?$/u;
 const REPOSITORY_PATH_RE = /^[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*(?:\/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)*$/u;
 
 function fail(message) {
@@ -145,6 +146,24 @@ export function parseMultilineInput(value) {
     .filter(Boolean);
 }
 
+export function normalizePlatforms(value) {
+  const source = Array.isArray(value) ? value.join("\n") : (value ?? "").toString();
+  const platforms = (source.trim() ? source : PLATFORMS.join("\n"))
+    .split(/[\r\n,]+/gu)
+    .map((platform) => platform.trim())
+    .filter(Boolean);
+
+  if (platforms.length === 0) {
+    fail("Expected at least one 'platforms' value");
+  }
+  for (const platform of platforms) {
+    if (!PLATFORM_RE.test(platform)) {
+      fail(`Platform '${platform}' must use the linux/architecture[/variant] format`);
+    }
+  }
+  return [...new Set(platforms)];
+}
+
 export function normalizeAdditionalTags(value) {
   const tags = Array.isArray(value) ? value : parseMultilineInput(value);
   return tags.map((tag) => {
@@ -230,6 +249,7 @@ export function buildArguments({
   dockerfile,
   metadataFile,
   metadata,
+  platforms = PLATFORMS,
   labels = [],
   pull = false,
   cacheFrom = [],
@@ -241,7 +261,7 @@ export function buildArguments({
     "--builder",
     builder,
     "--platform",
-    PLATFORMS.join(","),
+    platforms.join(","),
     "--file",
     dockerfile,
     "--build-arg",
@@ -279,19 +299,24 @@ export function buildArguments({
   return args;
 }
 
-export function missingPlatforms(inspectOutput) {
-  return PLATFORMS.filter((platform) => !new RegExp(`\\b${platform.replace("/", "\\/")}\\b`, "u").test(inspectOutput));
+export function missingPlatforms(inspectOutput, platforms = PLATFORMS) {
+  return platforms.filter((platform) => {
+    const escaped = platform.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    return !new RegExp(`\\b${escaped}\\b`, "u").test(inspectOutput);
+  });
 }
 
-export function assertSupportedPlatforms(inspectOutput) {
-  const missing = missingPlatforms(inspectOutput);
+export function assertSupportedPlatforms(inspectOutput, platforms = PLATFORMS) {
+  const missing = missingPlatforms(inspectOutput, platforms);
   if (missing.length > 0) {
     fail(`Buildx builder does not support required platform(s): ${missing.join(", ")}. Configure binfmt/QEMU on the runner.`);
   }
 }
 
 export function qemuArchitectures(platforms) {
-  return platforms.map((platform) => platform.replace(/^linux\//u, "").replace(/\/.*$/u, ""));
+  return [...new Set(
+    platforms.map((platform) => platform.replace(/^linux\//u, "").replace(/\/.*$/u, "")),
+  )];
 }
 
 export function createBuilderName(environment = process.env, pid = process.pid, now = Date.now()) {
@@ -389,6 +414,9 @@ export async function publishDockerImage(options = {}) {
     options.dockerfile ?? (readActionInput("dockerfile", environment) || "Dockerfile"),
     "dockerfile",
   );
+  const platforms = normalizePlatforms(
+    options.platforms ?? readActionInput("platforms", environment),
+  );
   const qemuSetup = normalizeQemuSetup(
     options.qemuSetup ?? (readActionInput("qemu-setup", environment) || "auto"),
   );
@@ -452,7 +480,7 @@ export async function publishDockerImage(options = {}) {
       commandOptions,
     );
     let inspect = await command("docker", ["buildx", "inspect", builder, "--bootstrap"], commandOptions);
-    let missing = missingPlatforms(inspect.output);
+    let missing = missingPlatforms(inspect.output, platforms);
 
     if (missing.length > 0 && qemuSetup === "auto") {
       console.log(`Buildx is missing ${missing.join(", ")}; configuring QEMU with ${qemuImage}`);
@@ -485,13 +513,13 @@ export async function publishDockerImage(options = {}) {
         commandOptions,
       );
       inspect = await command("docker", ["buildx", "inspect", builder, "--bootstrap"], commandOptions);
-      missing = missingPlatforms(inspect.output);
+      missing = missingPlatforms(inspect.output, platforms);
     }
 
     if (missing.length > 0 && qemuSetup === "never") {
       fail(`Buildx builder does not support required platform(s): ${missing.join(", ")} and qemu-setup is 'never'`);
     }
-    assertSupportedPlatforms(inspect.output);
+    assertSupportedPlatforms(inspect.output, platforms);
 
     await command(
       "docker",
@@ -508,6 +536,7 @@ export async function publishDockerImage(options = {}) {
         dockerfile,
         metadataFile,
         metadata,
+        platforms,
         labels,
         pull,
         cacheFrom,

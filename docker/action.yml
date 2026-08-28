@@ -1,5 +1,5 @@
 name: Build and publish Docker image
-description: Build and publish a multi-platform Docker image with branch and version tags
+description: Build and publish a Docker image for selected platforms with branch and version tags
 
 inputs:
   working-directory:
@@ -45,6 +45,12 @@ inputs:
     description: Path to the Dockerfile, relative to working-directory or absolute
     required: false
     default: Dockerfile
+  platforms:
+    description: Target Linux platforms, comma-separated or one per line
+    required: false
+    default: |
+      linux/amd64
+      linux/arm64
   qemu-setup:
     description: Configure missing QEMU emulators automatically (auto or never)
     required: false
@@ -68,7 +74,7 @@ outputs:
   commit:
     description: Twelve-character Git commit used for APP_COMMIT
   digest:
-    description: Digest of the published multi-platform manifest
+    description: Digest of the published image manifest
 
 runs:
   using: node24

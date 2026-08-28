@@ -1,7 +1,8 @@
 # Docker action
 
-Builds one Docker image for `linux/amd64` and `linux/arm64`, pushes it to a
-registry, and assigns every collected tag to the same multi-platform manifest.
+Builds one Docker image for the selected Linux platforms, pushes it to a
+registry, and assigns every collected tag to the same image manifest. By
+default, it builds both `linux/amd64` and `linux/arm64`.
 
 The action always adds the normalized branch tag and `sha-` followed by the
 12-character commit. It also adds the optional `version` tag and every tag
@@ -26,7 +27,7 @@ GitHub Actions:
 ```yaml
 - name: Build and publish Docker image
   id: docker
-  uses: nacid/actions/docker@v1
+  uses: nacid/actions/docker@v2
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}
@@ -41,7 +42,7 @@ Forgejo Actions should use the fully qualified action URL unless its
 ```yaml
 - name: Build and publish Docker image
   id: docker
-  uses: https://github.com/nacid/actions/docker@v1
+  uses: https://github.com/nacid/actions/docker@v2
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}
@@ -55,7 +56,7 @@ Relative `context` and `dockerfile` paths are resolved from
 `GITHUB_WORKSPACE`:
 
 ```yaml
-- uses: nacid/actions/docker@v1
+- uses: nacid/actions/docker@v2
   with:
     working-directory: Project
     context: .
@@ -66,6 +67,25 @@ Relative `context` and `dockerfile` paths are resolved from
     registry-password: ${{ secrets.REGISTRY_PASS }}
     version: 1.4.7
 ```
+
+## Target platforms
+
+Use `platforms` to override the default multi-platform build. Values may be
+comma-separated or supplied one per line:
+
+```yaml
+- name: Build and publish an amd64-only image
+  uses: https://github.com/nacid/actions/docker@v2
+  with:
+    registry: ${{ vars.REGISTRY }}
+    registry-image: ${{ vars.REGISTRY_IMAGE }}
+    registry-user: ${{ secrets.REGISTRY_USER }}
+    registry-password: ${{ secrets.REGISTRY_PASS }}
+    platforms: linux/amd64
+```
+
+Only Linux container platforms are accepted. Duplicate platform entries are
+removed before the Buildx invocation.
 
 ## Docker metadata integration
 
@@ -84,7 +104,7 @@ repository. This matches the `tag-names` output of
 
 - name: Build and publish Docker image
   id: docker
-  uses: nacid/actions/docker@v1
+  uses: nacid/actions/docker@v2
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}
@@ -127,6 +147,8 @@ cache configuration are passed directly to Buildx.
   absolute. Defaults to `.`.
 - `dockerfile`: Dockerfile path relative to `working-directory`, or absolute.
   Defaults to `Dockerfile`.
+- `platforms`: target Linux platforms, comma-separated or one per line.
+  Defaults to `linux/amd64` and `linux/arm64`.
 - `qemu-setup`: `auto` to configure missing emulators, or `never` to require
   preconfigured platform support. Defaults to `auto`.
 - `qemu-image`: binfmt image used by automatic QEMU setup. Defaults to the
@@ -160,7 +182,7 @@ out `HEAD` used as a fallback.
 - `commit-tag`: complete image reference tagged with `sha-` followed by the
   12-character commit.
 - `commit`: the 12-character commit passed to the Dockerfile.
-- `digest`: SHA-256 digest of the published multi-platform manifest.
+- `digest`: SHA-256 digest of the published image manifest.
 
 ## Runner requirements
 
@@ -173,8 +195,9 @@ The action uses the Node.js 24 action runtime and expects a Linux runner with:
 
 The action creates a temporary Buildx builder with the `docker-container`
 driver. With `qemu-setup: auto`, it leaves an already capable daemon unchanged.
-When a platform is missing, it removes the first builder, registers only the
-missing emulator, recreates the builder, and verifies the platforms again.
+When a selected platform is missing, it removes the first builder, registers
+only the missing emulator, recreates the builder, and verifies the selected
+platforms again.
 
 Set `qemu-setup: never` when the daemon must not be changed. Missing platform
 support then produces an error before registry login or image build.
