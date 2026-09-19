@@ -186,6 +186,7 @@ async function run({
 } = {}) {
   const valdorUrl = getInput("valdor-url", { required: true });
   const audience = getInput("valdor-aud", { required: true });
+  const channel = getInput("channel");
   const forgeInput = getInput("forge");
   const forge = forgeInput || parseForge(serverUrl);
   const selectors = Object.fromEntries(
@@ -195,12 +196,16 @@ async function run({
 
   core.info(`Requesting an OIDC token for audience ${audience}`);
   const jwt = await getIDToken(audience);
+  const headers = {
+    Authorization: `Bearer ${jwt}`,
+  };
+  if (channel) {
+    headers["X-Valdor-Channel"] = channel;
+  }
 
   core.info(`Downloading package from ${packageUrl}`);
   const response = await request(packageUrl, {
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-    },
+    headers,
   });
 
   if (!response.ok) {

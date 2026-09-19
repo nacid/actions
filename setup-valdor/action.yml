@@ -8,6 +8,9 @@ inputs:
   valdor-aud:
     description: Audience for the GitHub OIDC token
     required: true
+  channel:
+    description: Channel passed to Valdor in the X-Valdor-Channel header
+    required: false
   forge:
     description: Forge host; defaults to the host from github.server_url
     required: false
@@ -27,4 +30,3 @@ inputs:
 runs:
   using: node20
   main: dist/index.js
-

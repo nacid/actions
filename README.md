@@ -90,6 +90,7 @@ Inputs:
 
 - `valdor-url` — required Valdor base URL.
 - `valdor-aud` — required audience used to request the GitHub OIDC token.
+- `channel` — optional channel sent in the `X-Valdor-Channel` header when set.
 - `forge` — optional forge host. Defaults to the host from
   `forgejo.server_url` or `github.server_url`, for example `codeberg.org` or
   `github.com`.
