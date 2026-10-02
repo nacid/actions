@@ -54,27 +54,6 @@ async function responseError(response) {
   );
 }
 
-function normalizeEnvName(key) {
-  let name = key
-    .trim()
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
-    .replace(/[^A-Za-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/_+/g, "_")
-    .toUpperCase();
-
-  if (!name) {
-    throw new Error(`envs.json key ${JSON.stringify(key)} has no valid characters`);
-  }
-
-  if (/^[0-9]/.test(name)) {
-    name = `_${name}`;
-  }
-
-  return name;
-}
-
 function expandEnvValue(value, workspace) {
   const root = path.resolve(workspace);
   const extras = path.join(root, "extras");
@@ -88,7 +67,7 @@ async function exportEnvs({
   directory,
   workspace = directory,
   setSecret = (value) => core.setSecret(value),
-  exportVariable = (name, value) => core.exportVariable(name, value),
+  setOutput = (name, value) => core.setOutput(name, value),
   info = (message) => core.info(message),
 }) {
   const envsPath = path.join(directory, "envs.json");
@@ -116,7 +95,6 @@ async function exportEnvs({
     throw new Error("envs.json must contain a flat JSON object");
   }
 
-  const normalizedNames = new Map();
   const resolvedEnvs = [];
 
   for (const [key, entry] of Object.entries(envs)) {
@@ -136,17 +114,8 @@ async function exportEnvs({
       );
     }
 
-    const name = normalizeEnvName(key);
-    const previousKey = normalizedNames.get(name);
-    if (previousKey !== undefined) {
-      throw new Error(
-        `envs.json keys ${JSON.stringify(previousKey)} and ${JSON.stringify(key)} both normalize to ${name}`
-      );
-    }
-
-    normalizedNames.set(name, key);
     resolvedEnvs.push([
-      name,
+      key,
       expandEnvValue(entry.value, workspace),
       entry.secret,
     ]);
@@ -159,11 +128,11 @@ async function exportEnvs({
   }
 
   for (const [name, value] of resolvedEnvs) {
-    exportVariable(name, value);
+    setOutput(name, value);
   }
 
   if (resolvedEnvs.length > 0) {
-    info("Created environment variables:");
+    info("Created step outputs:");
     for (const [name] of resolvedEnvs) {
       info(name);
     }
@@ -256,7 +225,6 @@ module.exports = {
   buildPackageUrl,
   expandEnvValue,
   exportEnvs,
-  normalizeEnvName,
   parseForge,
   responseError,
   run,

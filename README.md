@@ -119,9 +119,26 @@ boolean `secret` flag and a string `value`:
 }
 ```
 
-Keys are normalized to upper snake case (`TOOL_PATH`, `EXTRAS_CACHE`) and
-exported for subsequent workflow steps. `{{root}}` is replaced with the
+Keys are preserved exactly (`toolPath`, `extras-cache`) and all values are
+published as step outputs, without exporting environment variables.
+`{{root}}` is replaced with the
 workspace path and `{{extras}}` with its `extras` subdirectory. A resolved value
 is registered as a secret only when its `secret` flag is `true`.
+
+Give the action step an `id` to access its outputs. Pass values explicitly to
+the steps that need them:
+
+```yaml
+- uses: nacid/actions/setup-valdor@v1
+  id: valdor
+  with:
+    valdor-url: https://valdor.example/packages
+    valdor-aud: https://valdor.example
+
+- run: ./build.sh
+  env:
+    TOOL_PATH: ${{ steps.valdor.outputs.toolPath }}
+    EXTRAS_CACHE: ${{ steps.valdor.outputs['extras-cache'] }}
+```
 
 The Forgejo runner image must provide Node.js 20 for JavaScript actions.

@@ -69,7 +69,9 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   const { port } = server.address();
   const actionPath = path.resolve(__dirname, "../dist/index.js");
   const environmentFile = path.join(destination, "runner-env");
+  const outputFile = path.join(destination, "runner-output");
   await fs.writeFile(environmentFile, "");
+  await fs.writeFile(outputFile, "");
 
   const { stdout } = await execFileAsync(process.execPath, [actionPath], {
     cwd: destination,
@@ -80,6 +82,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
       FORGEJO_SERVER_URL: "https://codeberg.org",
       FORGEJO_WORKSPACE: destination,
       GITHUB_ENV: environmentFile,
+      GITHUB_OUTPUT: outputFile,
       "INPUT_VALDOR-URL": `http://127.0.0.1:${port}/packages`,
       "INPUT_VALDOR-AUD": "valdor-audience",
       INPUT_PROFILE: "production",
@@ -100,17 +103,19 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   });
 
   const exportedEnvironment = await fs.readFile(environmentFile, "utf8");
-  assert.match(exportedEnvironment, /TOOL_PATH<</);
-  assert.match(exportedEnvironment, /EXTRAS_CACHE<</);
-  assert.ok(exportedEnvironment.includes(`${path.resolve(destination)}/tools`));
+  assert.equal(exportedEnvironment, "");
+  const outputs = await fs.readFile(outputFile, "utf8");
+  assert.match(outputs, /toolPath<</);
+  assert.match(outputs, /extras-cache<</);
+  assert.ok(outputs.includes(`${path.resolve(destination)}/tools`));
   assert.ok(
-    exportedEnvironment.includes(
+    outputs.includes(
       `${path.join(path.resolve(destination), "extras")}/cache`
     )
   );
   assert.match(
     stdout,
-    /Created environment variables:\r?\nTOOL_PATH\r?\nEXTRAS_CACHE/
+    /Created step outputs:\r?\ntoolPath\r?\nextras-cache/
   );
   assert.ok(stdout.includes(`::add-mask::${path.resolve(destination)}/tools`));
   assert.ok(
