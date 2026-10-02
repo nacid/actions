@@ -155,7 +155,6 @@ async function run({
 } = {}) {
   const valdorUrl = getInput("valdor-url", { required: true });
   const audience = getInput("valdor-aud", { required: true });
-  const channel = getInput("channel");
   const profile = getInput("profile");
   const forgeInput = getInput("forge");
   const forge = forgeInput || parseForge(serverUrl);
@@ -169,9 +168,6 @@ async function run({
   const headers = {
     Authorization: `Bearer ${jwt}`,
   };
-  if (channel) {
-    headers["X-Valdor-Channel"] = channel;
-  }
   if (profile) {
     headers["X-Valdor-Profile"] = profile;
   }
