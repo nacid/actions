@@ -11,6 +11,9 @@ inputs:
   channel:
     description: Channel passed to Valdor in the X-Valdor-Channel header
     required: false
+  profile:
+    description: Profile passed to Valdor in the X-Valdor-Profile header
+    required: false
   forge:
     description: Forge host; defaults to the host from github.server_url
     required: false

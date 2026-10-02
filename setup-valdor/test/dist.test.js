@@ -60,6 +60,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
     assert.equal(url.pathname, "/packages/codeberg.org");
     assert.equal(url.searchParams.get("branch"), "main");
     assert.equal(request.headers.authorization, "Bearer oidc-jwt");
+    assert.equal(request.headers["x-valdor-profile"], "production");
     response.end(archive);
   });
 
@@ -81,6 +82,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
       GITHUB_ENV: environmentFile,
       "INPUT_VALDOR-URL": `http://127.0.0.1:${port}/packages`,
       "INPUT_VALDOR-AUD": "valdor-audience",
+      INPUT_PROFILE: "production",
       INPUT_FORGE: "",
       INPUT_VERSION: "",
       INPUT_TAG: "",

@@ -187,6 +187,7 @@ async function run({
   const valdorUrl = getInput("valdor-url", { required: true });
   const audience = getInput("valdor-aud", { required: true });
   const channel = getInput("channel");
+  const profile = getInput("profile");
   const forgeInput = getInput("forge");
   const forge = forgeInput || parseForge(serverUrl);
   const selectors = Object.fromEntries(
@@ -201,6 +202,9 @@ async function run({
   };
   if (channel) {
     headers["X-Valdor-Channel"] = channel;
+  }
+  if (profile) {
+    headers["X-Valdor-Profile"] = profile;
   }
 
   core.info(`Downloading package from ${packageUrl}`);

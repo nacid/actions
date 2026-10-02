@@ -200,6 +200,7 @@ test("run requests OIDC, downloads the archive, and extracts it", async (t) => {
     request: async (url, options) => {
       requestedUrl = url.toString();
       authorization = options.headers.Authorization;
+      assert.equal(Object.hasOwn(options.headers, "X-Valdor-Profile"), false);
       return new Response(archive);
     },
   });
