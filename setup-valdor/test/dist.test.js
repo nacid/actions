@@ -61,6 +61,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
     assert.equal(url.searchParams.get("branch"), "main");
     assert.equal(request.headers.authorization, "Bearer oidc-jwt");
     assert.equal(request.headers["x-valdor-profile"], "production");
+    assert.equal(request.headers["x-valdor-extras"], "tools,cache");
     response.end(archive);
   });
 
@@ -86,6 +87,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
       "INPUT_VALDOR-URL": `http://127.0.0.1:${port}/packages`,
       "INPUT_VALDOR-AUD": "valdor-audience",
       INPUT_PROFILE: "production",
+      INPUT_EXTRAS: "tools,cache",
       INPUT_FORGE: "",
       INPUT_VERSION: "",
       INPUT_TAG: "",
@@ -113,9 +115,10 @@ test("the bundled action works with Forgejo-compatible environment variables", a
       `${path.join(path.resolve(destination), "extras")}/cache`
     )
   );
-  assert.match(
-    stdout,
-    /Created step outputs:\r?\ntoolPath\r?\nextras-cache/
+  assert.ok(
+    stdout.includes(
+      `Created step outputs:${os.EOL}toolPath=${path.resolve(destination)}/tools${os.EOL}extras-cache=${path.join(path.resolve(destination), "extras")}/cache`
+    )
   );
   assert.ok(stdout.includes(`::add-mask::${path.resolve(destination)}/tools`));
   assert.ok(

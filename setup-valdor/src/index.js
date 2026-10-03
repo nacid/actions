@@ -133,8 +133,8 @@ async function exportEnvs({
 
   if (resolvedEnvs.length > 0) {
     info("Created step outputs:");
-    for (const [name] of resolvedEnvs) {
-      info(name);
+    for (const [name, value] of resolvedEnvs) {
+      info(`${name}=${value}`);
     }
   }
 
@@ -156,6 +156,7 @@ async function run({
   const valdorUrl = getInput("valdor-url", { required: true });
   const audience = getInput("valdor-aud", { required: true });
   const profile = getInput("profile");
+  const extras = getInput("extras");
   const forgeInput = getInput("forge");
   const forge = forgeInput || parseForge(serverUrl);
   const selectors = Object.fromEntries(
@@ -170,6 +171,9 @@ async function run({
   };
   if (profile) {
     headers["X-Valdor-Profile"] = profile;
+  }
+  if (extras) {
+    headers["X-Valdor-Extras"] = extras;
   }
 
   core.info(`Downloading package from ${packageUrl}`);

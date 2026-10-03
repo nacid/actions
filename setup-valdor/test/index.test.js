@@ -100,8 +100,8 @@ test("exportEnvs removes envs.json, masks only secrets, creates outputs, and pre
     ["output", "toolPath", toolPath],
     ["output", "extras-cache", extrasCache],
     ["info", "Created step outputs:"],
-    ["info", "toolPath"],
-    ["info", "extras-cache"],
+    ["info", `toolPath=${toolPath}`],
+    ["info", `extras-cache=${extrasCache}`],
   ]);
   await assert.rejects(fs.access(envsPath), { code: "ENOENT" });
 });
@@ -174,6 +174,7 @@ test("run requests OIDC, downloads the archive, and extracts it", async (t) => {
   const inputs = {
     "valdor-url": "https://valdor.example/packages",
     "valdor-aud": "valdor",
+    extras: "",
     forge: "",
     version: "1.2.3",
     tag: "",
@@ -196,6 +197,7 @@ test("run requests OIDC, downloads the archive, and extracts it", async (t) => {
       requestedUrl = url.toString();
       authorization = options.headers.Authorization;
       assert.equal(Object.hasOwn(options.headers, "X-Valdor-Profile"), false);
+      assert.equal(Object.hasOwn(options.headers, "X-Valdor-Extras"), false);
       return new Response(archive);
     },
   });

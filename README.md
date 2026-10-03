@@ -91,6 +91,7 @@ Inputs:
 - `valdor-url` — required Valdor base URL.
 - `valdor-aud` — required audience used to request the GitHub OIDC token.
 - `profile` — optional profile sent in the `X-Valdor-Profile` header when set.
+- `extras` — optional extras sent in the `X-Valdor-Extras` header when set.
 - `forge` — optional forge host. Defaults to the host from
   `forgejo.server_url` or `github.server_url`, for example `codeberg.org` or
   `github.com`.
@@ -123,6 +124,8 @@ published as step outputs, without exporting environment variables.
 `{{root}}` is replaced with the
 workspace path and `{{extras}}` with its `extras` subdirectory. A resolved value
 is registered as a secret only when its `secret` flag is `true`.
+Resolved output names and values are logged as `name=value`, with secret values
+masked by the runner.
 
 Give the action step an `id` to access its outputs. Pass values explicitly to
 the steps that need them:
