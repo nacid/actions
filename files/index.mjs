@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendFile, readdir, stat } from "node:fs/promises";
+import { appendFile, readdir, realpath, stat } from "node:fs/promises";
 import { basename, join, parse, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -119,7 +119,9 @@ export async function runAction() {
   return outputs;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+const directRun = process.argv[1]
+  && await realpath(resolve(process.argv[1])) === await realpath(fileURLToPath(import.meta.url));
+if (directRun) {
   try {
     await runAction();
   } catch (error) {

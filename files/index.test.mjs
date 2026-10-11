@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,22 +58,32 @@ test("no matches and missing mask directories produce empty outputs", async (t) 
   await assert.rejects(findFiles({ workspace, pattern: "*", workingDirectory: "missing" }), { code: "ENOENT" });
 });
 
-test("the action entry point reads inputs and writes all four workflow outputs", async (t) => {
+test("direct and linked entry points read inputs and write all four workflow outputs", async (t) => {
   const workspace = await fixture(t, ["Project/dist/asd.apk", "Project/dist/xyz.apk"]);
   const output = join(workspace, "output.txt");
   const env = { ...process.env, GITHUB_WORKSPACE: workspace, GITHUB_OUTPUT: output, INPUT_PATTERN: "dist/*.apk", INPUT_MINIMUM: "" };
   delete env["INPUT_WORKING-DIRECTORY"];
   env.INPUT_WORKING_DIRECTORY = "Project";
-  const result = spawnSync(process.execPath, [fileURLToPath(new URL("./index.mjs", import.meta.url))], { env, encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
-  const content = await readFile(output, "utf8");
-  const outputs = Object.fromEntries([...content.matchAll(/^(\w+)<<(files_[\w-]+)\n([\s\S]*?)\n\2\n/gmu)].map((match) => [match[1], match[3]]));
-  assert.deepEqual(outputs, { first: "asd.apk", last: "xyz.apk", all: "asd.apk,xyz.apk", count: "2" });
+  const linkedDirectory = join(workspace, "action");
+  await symlink(
+    fileURLToPath(new URL(".", import.meta.url)),
+    linkedDirectory,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  for (const entry of [fileURLToPath(new URL("./index.mjs", import.meta.url)), join(linkedDirectory, "index.mjs")]) {
+    await rm(output, { force: true });
+    env.INPUT_PATTERN = "dist/*.apk";
+    const result = spawnSync(process.execPath, [entry], { env, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const content = await readFile(output, "utf8");
+    const outputs = Object.fromEntries([...content.matchAll(/^(\w+)<<(files_[\w-]+)\n([\s\S]*?)\n\2\n/gmu)].map((match) => [match[1], match[3]]));
+    assert.deepEqual(outputs, { first: "asd.apk", last: "xyz.apk", all: "asd.apk,xyz.apk", count: "2" });
 
-  env.INPUT_PATTERN = "";
-  const invalid = spawnSync(process.execPath, [fileURLToPath(new URL("./index.mjs", import.meta.url))], { env, encoding: "utf8" });
-  assert.equal(invalid.status, 1);
-  assert.match(invalid.stderr, /Input 'pattern' is required/u);
+    env.INPUT_PATTERN = "";
+    const invalid = spawnSync(process.execPath, [entry], { env, encoding: "utf8" });
+    assert.equal(invalid.status, 1);
+    assert.match(invalid.stderr, /Input 'pattern' is required/u);
+  }
 });
 
 test("minimum defaults to one, accepts an exact count, and rejects insufficient matches", async (t) => {

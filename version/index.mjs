@@ -1,4 +1,4 @@
-import { appendFile, stat } from "node:fs/promises";
+import { appendFile, realpath, stat } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -431,7 +431,8 @@ async function main() {
   await tagVersion();
 }
 
-const directRun = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const directRun = process.argv[1]
+  && await realpath(resolve(process.argv[1])) === await realpath(fileURLToPath(import.meta.url));
 if (directRun) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));

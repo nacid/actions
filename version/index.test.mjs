@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -27,6 +27,33 @@ function run(command, args, cwd) {
   );
   return (result.stdout ?? "").trim();
 }
+
+test("entrypoint reached through a symlink reports errors instead of silently succeeding", async () => {
+  const root = await mkdtemp(join(tmpdir(), "version-linked-entrypoint-"));
+  const linkedDirectory = join(root, "action");
+  const missingWorkspace = join(root, "missing");
+  try {
+    await symlink(
+      fileURLToPath(new URL(".", import.meta.url)),
+      linkedDirectory,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const result = spawnSync(process.execPath, [join(linkedDirectory, "index.mjs")], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GITHUB_WORKSPACE: missingWorkspace,
+        INPUT_WORKING_DIRECTORY: missingWorkspace,
+        "INPUT_WORKING-DIRECTORY": missingWorkspace,
+      },
+    });
+    assert.equal(result.status, 1, `Expected the action to run and fail, got: ${result.stdout ?? ""}${result.stderr ?? ""}`);
+    assert.match(result.stderr, /Working directory '.+' is not accessible/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("computeVersionTag increments only the selected major.minor series", () => {
   assert.equal(
@@ -362,12 +389,13 @@ test("repeated invocation returns the existing tag without changing Git identity
   }
 });
 
-test("the entrypoint uses prefix v when computing, pushing, and reusing tags", async () => {
+test("the linked entrypoint uses prefix v when computing, pushing, and reusing tags", async () => {
   const root = await mkdtemp(join(tmpdir(), "version-major-tag-"));
   const remote = join(root, "remote.git");
   const work = join(root, "work");
   const outputPath = join(root, "github-output.txt");
-  const entrypoint = fileURLToPath(new URL("./index.mjs", import.meta.url));
+  const linkedDirectory = join(root, "action");
+  const entrypoint = join(linkedDirectory, "index.mjs");
 
   function invoke(versionSource = "version.txt", pushTag = "true") {
     const result = spawnSync(process.execPath, [entrypoint], {
@@ -401,6 +429,11 @@ test("the entrypoint uses prefix v when computing, pushing, and reusing tags", a
   }
 
   try {
+    await symlink(
+      fileURLToPath(new URL(".", import.meta.url)),
+      linkedDirectory,
+      process.platform === "win32" ? "junction" : "dir",
+    );
     run("git", ["init", "--bare", remote], root);
     run("git", ["init", work], root);
     run("git", ["config", "user.name", "Test"], work);
