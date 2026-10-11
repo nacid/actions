@@ -1,0 +1,49 @@
+name: Prepare version
+description: Compute and optionally push a prefixed X.Y.N tag from a configured version source
+
+inputs:
+  working-directory:
+    description: Git working directory, relative to GITHUB_WORKSPACE or absolute
+    required: false
+    default: .
+  version-type:
+    description: Type of version source (TXT, PY_TOML, or UNITY)
+    required: true
+  version-source:
+    description: Path to the version source, relative to working-directory or absolute
+    required: true
+  prefix:
+    description: Literal prefix for version tags (for example version/ or v)
+    required: false
+    default: version/
+  push-tag:
+    description: Create and push the computed version tag
+    required: false
+    default: "true"
+  retries:
+    description: Number of retry attempts for tag pushes
+    required: false
+    default: "3"
+  retry-sleep:
+    description: Delay between retries in seconds
+    required: false
+    default: "1.0"
+outputs:
+  commit:
+    description: Full SHA of HEAD in the configured working directory
+  version:
+    description: Semver without the configured tag prefix
+  version_tag:
+    description: Existing or computed version tag for HEAD
+  version_major:
+    description: Major component of the resolved version
+  version_minor:
+    description: Minor component of the resolved version
+  version_patch:
+    description: Patch component of the resolved version
+  version_code:
+    description: Numeric version code (major * 1000000 + minor * 1000 + patch)
+
+runs:
+  using: node20
+  main: index.mjs

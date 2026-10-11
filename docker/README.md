@@ -27,7 +27,7 @@ GitHub Actions:
 ```yaml
 - name: Build and publish Docker image
   id: docker
-  uses: nacid/actions/docker@v2
+  uses: nacid/actions/docker@v3
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}
@@ -42,7 +42,7 @@ Forgejo Actions should use the fully qualified action URL unless its
 ```yaml
 - name: Build and publish Docker image
   id: docker
-  uses: https://github.com/nacid/actions/docker@v2
+  uses: https://github.com/nacid/actions/docker@v3
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}
@@ -56,7 +56,7 @@ Relative `context` and `dockerfile` paths are resolved from
 `GITHUB_WORKSPACE`:
 
 ```yaml
-- uses: nacid/actions/docker@v2
+- uses: nacid/actions/docker@v3
   with:
     working-directory: Project
     context: .
@@ -75,7 +75,7 @@ comma-separated or supplied one per line:
 
 ```yaml
 - name: Build and publish an amd64-only image
-  uses: https://github.com/nacid/actions/docker@v2
+  uses: https://github.com/nacid/actions/docker@v3
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}
@@ -104,7 +104,7 @@ repository. This matches the `tag-names` output of
 
 - name: Build and publish Docker image
   id: docker
-  uses: nacid/actions/docker@v2
+  uses: nacid/actions/docker@v3
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}

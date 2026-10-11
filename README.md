@@ -1,5 +1,66 @@
 # nacid/actions
 
+Reusable actions for GitHub Actions and Forgejo Actions. Use `@v3` for the
+latest checked revision of major version 3, or pin a commit SHA for an exact
+revision. On Forgejo, use a fully qualified GitHub URL such as
+`https://github.com/nacid/actions/files@v3`.
+
+## `files`
+
+Finds files matching a glob pattern and returns `first`, `last`, `all`
+(comma-separated), and `count`. Names exclude directories; matches are sorted
+by path. Requires at least `minimum` matches (default `1`). Set `minimum: 0`
+to allow empty results.
+
+```yaml
+- id: apk
+  uses: nacid/actions/files@v3
+  with:
+    pattern: 'dist/*.apk'
+```
+
+On Forgejo, use `https://github.com/nacid/actions/files@v3`. See
+[the files action documentation](files/README.md) for masks and outputs.
+
+## `version`
+
+Reads the major and minor version from a project file and computes the next
+`version/X.Y.N` tag for the current commit. The `prefix` input defaults to
+`version/`; for example, `prefix: v` selects `vX.Y.N` tags. By default it creates a lightweight
+tag and pushes it to `origin`; with `push-tag: false`, it only returns the
+computed outputs. If `HEAD` already has a version tag, the action returns the
+highest existing full version with the configured prefix without reading the
+source or pushing another tag. Major-only tags such as `v3` are ignored.
+
+Supported sources are `TXT` (the first `X.Y.Z` in a text file), `PY_TOML`
+(the PEP 621 `[project].version`), and `UNITY` (`PlayerSettings.bundleVersion`).
+The source patch component is ignored. Requires Git and a full-history checkout.
+
+```yaml
+permissions:
+  contents: write
+
+steps:
+  - uses: actions/checkout@v6
+    with:
+      fetch-depth: 0
+      persist-credentials: false
+
+  - id: version
+    uses: nacid/actions/version@v3
+    env:
+      FORGEJO_TOKEN: ${{ github.token }}
+    with:
+      version-type: TXT
+      version-source: version.txt
+```
+
+On Forgejo, use `https://github.com/nacid/actions/version@v3`; the automatic
+`FORGEJO_TOKEN` is already available. Relative source paths resolve from
+`working-directory`. SSH origins reuse the checkout's authentication. See
+[the version action documentation](version/README.md) for inputs, outputs,
+authentication, and adding source handlers in `version/mode`.
+
 ## `docker`
 
 Builds and publishes one `linux/amd64` and `linux/arm64` image. The normalized
@@ -16,7 +77,7 @@ manifest.
       type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
 - id: docker
-  uses: nacid/actions/docker@v1
+  uses: nacid/actions/docker@v3
   with:
     registry: ${{ vars.REGISTRY }}
     registry-image: ${{ vars.REGISTRY_IMAGE }}
@@ -47,9 +108,9 @@ permissions:
   id-token: write
 
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v6
 
-  - uses: nacid/actions/setup-valdor@v1
+  - uses: nacid/actions/setup-valdor@v3
     with:
       valdor-url: https://valdor.example/packages
       valdor-aud: https://valdor.example
@@ -69,10 +130,10 @@ jobs:
   setup:
     runs-on: docker
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # A fully qualified URL avoids Forgejo's DEFAULT_ACTIONS_URL prefix.
-      - uses: https://github.com/nacid/actions/setup-valdor@v1
+      - uses: https://github.com/nacid/actions/setup-valdor@v3
         with:
           valdor-url: https://valdor.example/packages
           valdor-aud: https://valdor.example
@@ -131,7 +192,7 @@ Give the action step an `id` to access its outputs. Pass values explicitly to
 the steps that need them:
 
 ```yaml
-- uses: nacid/actions/setup-valdor@v1
+- uses: nacid/actions/setup-valdor@v3
   id: valdor
   with:
     valdor-url: https://valdor.example/packages
@@ -143,4 +204,25 @@ the steps that need them:
     EXTRAS_CACHE: ${{ steps.valdor.outputs['extras-cache'] }}
 ```
 
-The Forgejo runner image must provide Node.js 20 for JavaScript actions.
+The Forgejo runner must provide Node.js 20 for `files`, `version`, and
+`setup-valdor`, and Node.js 24 for `docker`.
+
+## Repository versioning
+
+[version.txt](version.txt) contains the repository version in `N.N.N` format,
+currently `3.0.0`. The [GitHub workflow](.github/workflows/check.yml) runs the
+tests, rebuilds `setup-valdor`, and verifies that its committed bundle matches.
+After those checks succeed on `main`, it invokes the local `version` action
+with `prefix: v` and `push-tag: false`, then creates or moves `v{MAJOR}` to
+the checked commit (`v3` for the current source).
+
+The repository publishes only major tags such as `v3`; the workflow does not
+create full-version tags. Pull requests and manual runs on other branches
+only run the checks. Tag publishing jobs are serialized and have
+`contents: write`; test jobs keep `contents: read`. This follows GitHub's
+[guidance on moving major action tags](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/release-and-maintain-actions).
+
+## Development
+
+Run `npm test` to test all actions, including `files` and `version`.
+Run `npm run check` to test the actions and rebuild the `setup-valdor` bundle.

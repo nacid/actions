@@ -1,0 +1,29 @@
+name: Find files
+description: Find files matching a glob pattern and return their names and count
+
+inputs:
+  pattern:
+    description: File glob pattern, relative to working-directory or absolute
+    required: true
+  minimum:
+    description: Minimum number of matching files required (0 allows no matches)
+    required: false
+    default: "1"
+  working-directory:
+    description: Search directory, relative to GITHUB_WORKSPACE or absolute
+    required: false
+    default: .
+
+outputs:
+  first:
+    description: First matching file name without directories, sorted by path
+  last:
+    description: Last matching file name without directories, sorted by path
+  all:
+    description: All matching file names without directories, separated by commas
+  count:
+    description: Number of matching files
+
+runs:
+  using: node20
+  main: index.mjs

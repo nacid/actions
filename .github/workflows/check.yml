@@ -1,4 +1,4 @@
-name: Check actions
+name: Check and version actions
 
 on:
   pull_request:
@@ -34,3 +34,36 @@ jobs:
 
       - name: Verify committed bundles
         run: git diff --exit-code -- setup-valdor/dist/index.js
+
+  publish:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-actions
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Prepare version
+        id: version
+        uses: ./version
+        env:
+          FORGEJO_TOKEN: ${{ github.token }}
+        with:
+          version-type: TXT
+          version-source: version.txt
+          prefix: v
+          push-tag: false
+
+      - name: Update major version tag
+        env:
+          MAJOR_TAG: v${{ steps.version.outputs.version_major }}
+        run: |
+          git tag --force "$MAJOR_TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$MAJOR_TAG"
