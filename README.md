@@ -185,8 +185,9 @@ published as step outputs, without exporting environment variables.
 `{{root}}` is replaced with the
 workspace path and `{{extras}}` with its `extras` subdirectory. A resolved value
 is registered as a secret only when its `secret` flag is `true`.
-Resolved output names and values are logged as `name=value`, with secret values
-masked by the runner.
+Resolved outputs are logged as `name=value` for non-secret values and
+`name=***` for secrets, including multiline secrets. The full resolved value
+is preserved in the step output.
 
 Give the action step an `id` to access its outputs. Pass values explicitly to
 the steps that need them:

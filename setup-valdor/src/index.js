@@ -133,8 +133,8 @@ async function exportEnvs({
 
   if (resolvedEnvs.length > 0) {
     info("Created step outputs:");
-    for (const [name, value] of resolvedEnvs) {
-      info(`${name}=${value}`);
+    for (const [name, value, secret] of resolvedEnvs) {
+      info(`${name}=${secret ? "***" : value}`);
     }
   }
 

@@ -22,6 +22,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
     await fs.rm(destination, { recursive: true, force: true });
   });
 
+  const ssh = "-----BEGIN PRIVATE KEY-----\nkey-material\n-----END PRIVATE KEY-----\n";
   await fs.writeFile(path.join(fixtureDirectory, "from-dist.txt"), "complete");
   await fs.writeFile(
     path.join(fixtureDirectory, "envs.json"),
@@ -34,6 +35,7 @@ test("the bundled action works with Forgejo-compatible environment variables", a
         secret: false,
         value: "{{extras}}/cache",
       },
+      ssh: { secret: true, value: ssh },
     })
   );
   const archivePath = path.join(fixtureDirectory, "fixture.tar");
@@ -109,16 +111,17 @@ test("the bundled action works with Forgejo-compatible environment variables", a
   const outputs = await fs.readFile(outputFile, "utf8");
   assert.match(outputs, /toolPath<</);
   assert.match(outputs, /extras-cache<</);
+  assert.match(outputs, /ssh<</);
+  assert.ok(outputs.includes(ssh));
   assert.ok(outputs.includes(`${path.resolve(destination)}/tools`));
   assert.ok(
     outputs.includes(
       `${path.join(path.resolve(destination), "extras")}/cache`
     )
   );
-  assert.ok(
-    stdout.includes(
-      `Created step outputs:${os.EOL}toolPath=${path.resolve(destination)}/tools${os.EOL}extras-cache=${path.join(path.resolve(destination), "extras")}/cache`
-    )
+  assert.equal(
+    stdout.slice(stdout.indexOf("Created step outputs:")),
+    `Created step outputs:${os.EOL}toolPath=***${os.EOL}extras-cache=${path.join(path.resolve(destination), "extras")}/cache${os.EOL}ssh=***${os.EOL}`
   );
   assert.ok(stdout.includes(`::add-mask::${path.resolve(destination)}/tools`));
   assert.ok(

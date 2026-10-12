@@ -100,10 +100,38 @@ test("exportEnvs removes envs.json, masks only secrets, creates outputs, and pre
     ["output", "toolPath", toolPath],
     ["output", "extras-cache", extrasCache],
     ["info", "Created step outputs:"],
-    ["info", `toolPath=${toolPath}`],
+    ["info", "toolPath=***"],
     ["info", `extras-cache=${extrasCache}`],
   ]);
   await assert.rejects(fs.access(envsPath), { code: "ENOENT" });
+});
+
+test("exportEnvs logs multiline secrets on one line and preserves their output values", async (t) => {
+  for (const newline of ["\n", "\r\n"]) {
+    await t.test(JSON.stringify(newline), async (t) => {
+      const directory = await fs.mkdtemp(path.join(os.tmpdir(), "valdor-multiline-"));
+      t.after(() => fs.rm(directory, { recursive: true, force: true }));
+      const value = ["-----BEGIN PRIVATE KEY-----", "key-material", "-----END PRIVATE KEY-----", ""].join(newline);
+      await fs.writeFile(
+        path.join(directory, "envs.json"),
+        JSON.stringify({ ssh: { secret: true, value } })
+      );
+
+      const secrets = [];
+      const outputs = [];
+      const messages = [];
+      await exportEnvs({
+        directory,
+        setSecret: (value) => secrets.push(value),
+        setOutput: (name, value) => outputs.push([name, value]),
+        info: (message) => messages.push(message),
+      });
+
+      assert.deepEqual(secrets, [value]);
+      assert.deepEqual(outputs, [["ssh", value]]);
+      assert.deepEqual(messages, ["Created step outputs:", "ssh=***"]);
+    });
+  }
 });
 
 test("exportEnvs preserves distinct keys that previously normalized to the same name", async (t) => {
