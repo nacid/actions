@@ -28,6 +28,8 @@ jobs:
 
       - name: Test actions
         id: tests
+        env:
+          NODE_OPTIONS: --test-reporter=spec --test-reporter=./.github/test-counts.mjs --test-reporter-destination=stdout --test-reporter-destination=stdout
         run: npm test
 
       - name: Rebuild bundled actions
@@ -48,7 +50,7 @@ jobs:
           path: actions-public/tests.svg
           type: tests
           passed: ${{ steps.tests.outcome == 'success' }}
-          message: ${{ steps.tests.outcome }}
+          message: ${{ steps.tests.outputs.message || steps.tests.outcome }}
 
       - name: Update build badge
         id: build_badge

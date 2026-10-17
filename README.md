@@ -279,13 +279,19 @@ only run the checks. Tag publishing jobs are serialized and have
 [guidance on moving major action tags](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/release-and-maintain-actions).
 
 The workflow uses the local `./badge` action to update the README badges only
-on `main`. `tests` reports `npm test`; `build` reports both the rebuild and the
-committed bundle check; `release` reports the result of updating the major tag
+on `main`. `tests` reports the `npm test` passed/total counts; `build` reports
+both the rebuild and the committed bundle check; `release` reports the result of updating the major tag
 and displays its name (currently `v3`). Failed operations turn their badge red.
 Skipped operations leave their badge unchanged; updates are skipped after
 cancellation. Each badge
 shows its last attempted operation, so the three badges may reflect different
 commits when a later operation is skipped.
+
+The test counter uses the final `node:test` summary, including nested tests;
+total includes skipped, TODO, and cancelled tests. Test failures still fail
+the step and turn the badge red. If no summary is available, the badge falls
+back to the step outcome. `.github/test-counts.mjs` runs alongside the normal
+console reporter in CI; local `npm test` is unchanged.
 
 Updates use `https://nacid.me/badge` with the repository secret `BADGES_TOKEN`.
 Badge service failures produce warnings and do not block checks or publication.
