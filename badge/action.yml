@@ -1,0 +1,36 @@
+name: Update badge
+description: Update a persistent SVG badge through the badges HTTP API
+
+inputs:
+  endpoint:
+    description: Base URL of the badge update service
+    required: false
+    default: https://nacid.me/badge
+  path:
+    description: Relative badge path, for example project/build.svg
+    required: true
+  token:
+    description: Optional bearer token for endpoints requiring authentication
+    required: false
+  type:
+    description: Badge preset (tests, npm, docker, dev, alpha, beta, release, custom)
+    required: false
+    default: custom
+  color:
+    description: Message background color for custom badges
+    required: false
+    default: "#28a745"
+  label:
+    description: Label for custom badges
+    required: false
+    default: build
+  message:
+    description: Badge message
+    required: true
+  passed:
+    description: Whether the operation passed (true/false); false forces a red message background
+    required: true
+
+runs:
+  using: node24
+  main: index.mjs

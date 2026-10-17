@@ -1,9 +1,37 @@
 # nacid/actions
 
+[![tests](https://nacid.me/badge/actions-public/tests.svg)](https://github.com/nacid/actions/actions/workflows/check.yml)
+[![build](https://nacid.me/badge/actions-public/build.svg)](https://github.com/nacid/actions/actions/workflows/check.yml)
+[![release](https://nacid.me/badge/actions-public/release.svg)](https://github.com/nacid/actions/tags)
+
 Reusable actions for GitHub Actions and Forgejo Actions. Use `@v3` for the
 latest checked revision of major version 3, or pin a commit SHA for an exact
 revision. On Forgejo, use a fully qualified GitHub URL such as
 `https://github.com/nacid/actions/files@v3`.
+
+## `badge`
+
+Updates a persistent SVG badge with a JSON POST. The default endpoint is
+`https://nacid.me/badge`; provide its bearer token from CI secrets.
+
+```yaml
+- uses: https://github.com/nacid/actions/badge@v3
+  with:
+    token: ${{ secrets.BADGES_TOKEN }}
+    path: my-project/docker.svg
+    type: docker
+    passed: true
+    message: ${{ steps.version.outputs.version }}
+```
+
+Supported presets are `tests`, `npm`, `docker`, `dev`, `alpha`, `beta`, and
+`release`. The default `custom` type uses the `label` and `color` inputs.
+Required boolean `passed` keeps the normal color when `true` and forces red
+when `false`, for both presets and custom badges.
+For requests through the internal Astra proxy, set
+`endpoint: https://astra.nacid.me/badge`; no token is needed from its allowed
+LAN/VPN networks. Requires Node.js 24. See
+[the badge action documentation](badge/README.md) for colors and examples.
 
 ## `files`
 
@@ -163,6 +191,31 @@ Valdor must return an uncompressed or supported compressed tar archive. The
 archive is extracted into `github.workspace` (the action process working
 directory).
 
+The `files` step output is a JSON object mapping each extracted file's name in
+`extras` (including nested directories) to its absolute path. For example,
+`extras/certs/common.p12` produces a `common.p12` key. Only regular files from
+the current archive are included; directories, symbolic links, pre-existing
+files absent from the archive, and files named `envs.json` are excluded.
+If different paths have the same filename, the action fails instead of
+overwriting a key. Without matching files, the output is `{}`.
+
+Outputs are strings, so use
+[`fromJSON`](https://docs.github.com/en/actions/reference/workflows-and-actions/expressions#fromjson)
+to read the file paths:
+
+```yaml
+- uses: nacid/actions/setup-valdor@v3
+  id: setup
+  with:
+    valdor-url: https://valdor.example/packages
+    valdor-aud: https://valdor.example
+    extras: common.p12
+
+- run: ./sign.sh
+  env:
+    CERTIFICATE_PATH: ${{ fromJSON(steps.setup.outputs.files)['common.p12'] }}
+```
+
 If the extracted archive contains `envs.json` at its root, the action reads and
 deletes it. The file must contain a flat JSON object whose entries have a
 boolean `secret` flag and a string `value`:
@@ -182,6 +235,8 @@ boolean `secret` flag and a string `value`:
 
 Keys are preserved exactly (`toolPath`, `extras-cache`) and all values are
 published as step outputs, without exporting environment variables.
+The output name `files` (case-insensitive) is reserved for the file path map
+and cannot be used as a key in `envs.json`.
 `{{root}}` is replaced with the
 workspace path and `{{extras}}` with its `extras` subdirectory. A resolved value
 is registered as a secret only when its `secret` flag is `true`.
@@ -206,7 +261,7 @@ the steps that need them:
 ```
 
 The Forgejo runner must provide Node.js 20 for `files`, `version`, and
-`setup-valdor`, and Node.js 24 for `docker`.
+`setup-valdor`, and Node.js 24 for `docker` and `badge`.
 
 ## Repository versioning
 
@@ -223,7 +278,20 @@ only run the checks. Tag publishing jobs are serialized and have
 `contents: write`; test jobs keep `contents: read`. This follows GitHub's
 [guidance on moving major action tags](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/release-and-maintain-actions).
 
+The workflow uses the local `./badge` action to update the README badges only
+on `main`. `tests` reports `npm test`; `build` reports both the rebuild and the
+committed bundle check; `release` reports the result of updating the major tag
+and displays its name (currently `v3`). Failed operations turn their badge red.
+Skipped operations leave their badge unchanged; updates are skipped after
+cancellation. Each badge
+shows its last attempted operation, so the three badges may reflect different
+commits when a later operation is skipped.
+
+Updates use `https://nacid.me/badge` with the repository secret `BADGES_TOKEN`.
+Badge service failures produce warnings and do not block checks or publication.
+The SVGs are created on the first successful badge update.
+
 ## Development
 
-Run `npm test` to test all actions, including `files` and `version`.
+Run `npm test` to test all actions, including `files`, `version`, and `badge`.
 Run `npm run check` to test the actions and rebuild the `setup-valdor` bundle.

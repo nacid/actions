@@ -98,6 +98,9 @@ async function exportEnvs({
   const resolvedEnvs = [];
 
   for (const [key, entry] of Object.entries(envs)) {
+    if (key.toLowerCase() === "files") {
+      throw new Error('envs.json output name "files" is reserved for file paths');
+    }
     if (entry === null || Array.isArray(entry) || typeof entry !== "object") {
       throw new Error(
         `envs.json entry for ${JSON.stringify(key)} must be an object`
@@ -141,10 +144,49 @@ async function exportEnvs({
   return resolvedEnvs.map(([name]) => name);
 }
 
+async function collectFiles(entries, directory) {
+  const extrasDirectory = path.resolve(directory, "extras");
+  const files = new Map();
+
+  for (const entry of entries) {
+    if (!["File", "OldFile", "ContiguousFile", "Link"].includes(entry.type)) {
+      continue;
+    }
+    if (!entry.absolute) {
+      continue;
+    }
+
+    const absolutePath = path.resolve(entry.absolute);
+    const relativePath = path.relative(extrasDirectory, absolutePath);
+    if (
+      !relativePath ||
+      relativePath === ".." ||
+      relativePath.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relativePath)
+    ) {
+      continue;
+    }
+
+    const name = path.basename(absolutePath);
+    if (name === "envs.json" || !(await fs.lstat(absolutePath)).isFile()) {
+      continue;
+    }
+    if (files.has(name) && files.get(name) !== absolutePath) {
+      throw new Error(
+        `Duplicate extras filename ${JSON.stringify(name)}: ${files.get(name)} and ${absolutePath}`
+      );
+    }
+    files.set(name, absolutePath);
+  }
+
+  return Object.fromEntries(files);
+}
+
 async function run({
   getInput = (name, options) => core.getInput(name, options),
   getIDToken = (audience) => core.getIDToken(audience),
   request = fetch,
+  setOutput = (name, value) => core.setOutput(name, value),
   serverUrl =
     process.env.FORGEJO_SERVER_URL || process.env.GITHUB_SERVER_URL,
   destination = process.cwd(),
@@ -199,16 +241,22 @@ async function run({
     );
 
     core.info("Extracting package into the workspace");
+    const entries = [];
     await tar.extract({
       file: archivePath,
       cwd: destination,
       strict: true,
+      // Keep the entry objects: tar fills their absolute paths during extraction.
+      onReadEntry: (entry) => entries.push(entry),
     });
 
+    const files = await collectFiles(entries, destination);
     await exportEnvs({
       directory: destination,
       workspace,
+      setOutput,
     });
+    setOutput("files", JSON.stringify(files));
   } finally {
     await fs.rm(tempDirectory, { recursive: true, force: true });
   }
@@ -223,6 +271,7 @@ if (require.main === module) {
 module.exports = {
   SELECTOR_INPUTS,
   buildPackageUrl,
+  collectFiles,
   expandEnvValue,
   exportEnvs,
   parseForge,

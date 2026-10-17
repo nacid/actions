@@ -27,13 +27,45 @@ jobs:
         run: npm ci
 
       - name: Test actions
+        id: tests
         run: npm test
 
       - name: Rebuild bundled actions
+        id: build
         run: npm run build
 
       - name: Verify committed bundles
+        id: bundles
         run: git diff --exit-code -- setup-valdor/dist/index.js
+
+      - name: Update tests badge
+        id: tests_badge
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
+        continue-on-error: true
+        uses: ./badge
+        with:
+          token: ${{ secrets.BADGES_TOKEN }}
+          path: actions-public/tests.svg
+          type: tests
+          passed: ${{ steps.tests.outcome == 'success' }}
+          message: ${{ steps.tests.outcome }}
+
+      - name: Update build badge
+        id: build_badge
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (steps.build.outcome == 'success' || steps.build.outcome == 'failure') }}
+        continue-on-error: true
+        uses: ./badge
+        with:
+          token: ${{ secrets.BADGES_TOKEN }}
+          path: actions-public/build.svg
+          type: custom
+          label: build
+          passed: ${{ steps.build.outcome == 'success' && steps.bundles.outcome == 'success' }}
+          message: ${{ steps.build.outcome == 'success' && steps.bundles.outcome || steps.build.outcome }}
+
+      - name: Warn about badge update failures
+        if: ${{ !cancelled() && (steps.tests_badge.outcome == 'failure' || steps.build_badge.outcome == 'failure') }}
+        run: echo '::warning::Could not update tests/build badges; check the badge service and BADGES_TOKEN.'
 
   publish:
     needs: test
@@ -62,8 +94,25 @@ jobs:
           push-tag: false
 
       - name: Update major version tag
+        id: release
         env:
           MAJOR_TAG: v${{ steps.version.outputs.version_major }}
         run: |
           git tag --force "$MAJOR_TAG" "$GITHUB_SHA"
           git push --force origin "refs/tags/$MAJOR_TAG"
+
+      - name: Update release badge
+        id: release_badge
+        if: ${{ !cancelled() && (steps.release.outcome == 'success' || steps.release.outcome == 'failure') }}
+        continue-on-error: true
+        uses: ./badge
+        with:
+          token: ${{ secrets.BADGES_TOKEN }}
+          path: actions-public/release.svg
+          type: release
+          passed: ${{ steps.release.outcome == 'success' }}
+          message: v${{ steps.version.outputs.version_major }}
+
+      - name: Warn about badge update failure
+        if: ${{ !cancelled() && steps.release_badge.outcome == 'failure' }}
+        run: echo '::warning::Could not update the release badge; check the badge service and BADGES_TOKEN.'

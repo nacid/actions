@@ -30,6 +30,10 @@ inputs:
     description: Package commit passed to Valdor
     required: false
 
+outputs:
+  files:
+    description: JSON object mapping extras filenames to absolute extracted file paths, excluding envs.json
+
 runs:
   using: node20
   main: dist/index.js
