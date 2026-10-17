@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 export const DEFAULT_ENDPOINT = "https://nacid.me/badge";
 export const DEFAULT_COLOR = "#28a745";
 export const PRESETS = Object.freeze({
-  tests: Object.freeze({ label: "tests", color: "#800020" }),
+  tests: Object.freeze({ label: "tests", color: DEFAULT_COLOR }),
   npm: Object.freeze({ label: "npm", color: "#007ec6" }),
   docker: Object.freeze({ label: "docker", color: "#97ca00" }),
   dev: Object.freeze({ label: "dev", color: DEFAULT_COLOR }),

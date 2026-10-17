@@ -1,8 +1,8 @@
-# nacid/actions
-
 [![tests](https://nacid.me/badge/actions-public/tests.svg)](https://github.com/nacid/actions/actions/workflows/check.yml)
 [![build](https://nacid.me/badge/actions-public/build.svg)](https://github.com/nacid/actions/actions/workflows/check.yml)
 [![release](https://nacid.me/badge/actions-public/release.svg)](https://github.com/nacid/actions/tags)
+
+# Public CI actions
 
 Reusable actions for GitHub Actions and Forgejo Actions. Use `@v3` for the
 latest checked revision of major version 3, or pin a commit SHA for an exact

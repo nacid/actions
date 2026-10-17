@@ -62,7 +62,7 @@ Custom badge:
 
 | Type | Label | Message background |
 | --- | --- | --- |
-| `tests` | `tests` | Burgundy `#800020` |
+| `tests` | `tests` | Green `#28a745` |
 | `npm` | `npm` | Blue `#007ec6` |
 | `docker` | `docker` | Light green `#97ca00` |
 | `dev` | `dev` | Green `#28a745` |

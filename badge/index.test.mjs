@@ -15,7 +15,7 @@ test("custom defaults and fixed preset labels/colors", () => {
     label: "coverage", color: "#123456", message: "95%",
   });
   for (const [type, color] of [
-    ["tests", "#800020"], ["npm", "#007ec6"], ["docker", "#97ca00"],
+    ["tests", "#28a745"], ["npm", "#007ec6"], ["docker", "#97ca00"],
     ["dev", "#28a745"], ["alpha", "#28a745"], ["beta", "#28a745"], ["release", "#28a745"],
   ]) {
     assert.deepEqual(badgePayload({ type, label: "ignored", color: "ignored", message: "1.2.3", passed: true }), {
@@ -87,7 +87,7 @@ test("POST uses JSON and omits Authorization when the optional token is absent",
   assert.equal(captured.url, "https://nacid.me/badge/project/tests.svg");
   assert.equal(captured.options.method, "POST");
   assert.deepEqual(captured.options.headers, { "Content-Type": "application/json" });
-  assert.deepEqual(JSON.parse(captured.options.body), { label: "tests", color: "#800020", message: 'passed "✓"\nnext' });
+  assert.deepEqual(JSON.parse(captured.options.body), { label: "tests", color: "#28a745", message: 'passed "✓"\nnext' });
   assert.equal(captured.options.redirect, "error");
   assert.ok(captured.options.signal instanceof AbortSignal);
   assert.equal(result.url, captured.url);
